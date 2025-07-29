@@ -185,70 +185,59 @@ TEST_P(LCSFactoryPivotingTest, LinearizePlantToLCS) {
   EXPECT_EQ(lcs.num_lambdas(), LCSFactory::GetNumContactVariables(options));
 }
 
-// TEST_P(LCSFactoryPivotingTest, UpdateStateAndInput) {
-//   LCS initial_lcs = lcs_factory->GenerateLCS();
-//   auto [initial_contact_points, initial_force_basis_per_contact] =
-//       lcs_factory->GetWitnessPointsAndForceBasisInWorldFrame();
+TEST_P(LCSFactoryPivotingTest, UpdateStateAndInput) {
+  LCS initial_lcs = lcs_factory->GenerateLCS();
+  auto initial_contact_descriptions = lcs_factory->GetContactDescriptions();
 
-//   drake::VectorX<double> state =
-//       VectorXd::Zero(plant->num_positions() + plant->num_velocities());
-//   state << 0, 0.75, 0.785, -0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 0;
-//   drake::VectorX<double> input = VectorXd::Zero(plant->num_actuators());
-//   input << 0, 0, 0, 0;
+  drake::VectorX<double> state =
+      VectorXd::Zero(plant->num_positions() + plant->num_velocities());
+  state << 0, 0.75, 0.785, -0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 0;
+  drake::VectorX<double> input = VectorXd::Zero(plant->num_actuators());
+  input << 0, 0, 0, 0;
 
-//   // Update the LCS factory with the state and input.
-//   lcs_factory->UpdateStateAndInput(state, input);
+  // Update the LCS factory with the state and input.
+  lcs_factory->UpdateStateAndInput(state, input);
 
-//   LCS updated_lcs = lcs_factory->GenerateLCS();
-//   auto [updated_contact_points, updated_force_basis_per_contact] =
-//       lcs_factory->GetWitnessPointsAndForceBasisInWorldFrame();
+  LCS updated_lcs = lcs_factory->GenerateLCS();
+  auto updated_contact_descriptions = lcs_factory->GetContactDescriptions();
 
-//   EXPECT_EQ(initial_lcs.A(), updated_lcs.A());
-//   EXPECT_EQ(initial_lcs.B(), updated_lcs.B());
-//   EXPECT_EQ(initial_lcs.d(), updated_lcs.d());
+  EXPECT_EQ(initial_lcs.A(), updated_lcs.A());
+  EXPECT_EQ(initial_lcs.B(), updated_lcs.B());
+  EXPECT_EQ(initial_lcs.d(), updated_lcs.d());
 
-//   EXPECT_NE(initial_lcs.D(), updated_lcs.D());
-//   // Except for frictionless spring, the contact model would generate different
-//   // matrices
-//   if (contact_model != ContactModel::kFrictionlessSpring) {
-//     EXPECT_NE(initial_lcs.E(), updated_lcs.E());
-//     EXPECT_NE(initial_lcs.F(), updated_lcs.F());
-//     EXPECT_NE(initial_lcs.H(), updated_lcs.H());
-//     EXPECT_NE(initial_lcs.c(), updated_lcs.c());
-//   }
+  EXPECT_NE(initial_lcs.D(), updated_lcs.D());
+  // Except for frictionless spring, the contact model would generate different
+  // matrices
+  if (contact_model != ContactModel::kFrictionlessSpring) {
+    EXPECT_NE(initial_lcs.E(), updated_lcs.E());
+    EXPECT_NE(initial_lcs.F(), updated_lcs.F());
+    EXPECT_NE(initial_lcs.H(), updated_lcs.H());
+    EXPECT_NE(initial_lcs.c(), updated_lcs.c());
+  }
 
-//   for (size_t i = 0; i < initial_contact_points.size(); ++i) {
-//     EXPECT_NE(initial_contact_points[i], updated_contact_points[i]);
-//     EXPECT_NE(initial_force_basis_per_contact[i],
-//               updated_force_basis_per_contact[i]);
-//   }
-// }
+  for (size_t i = 0; i < initial_contact_descriptions.size(); ++i) {
+    if (initial_contact_descriptions[i].is_slack) continue;
+    EXPECT_NE(initial_contact_descriptions[i].witness_point_A,
+              updated_contact_descriptions[i].witness_point_A);
+    EXPECT_NE(initial_contact_descriptions[i].witness_point_B,
+              updated_contact_descriptions[i].witness_point_B);
+    EXPECT_NE(initial_contact_descriptions[i].force_basis,
+              updated_contact_descriptions[i].force_basis);
+  }
+}
 
-// TEST_P(LCSFactoryPivotingTest, GetWitnessPointsAndForceBasisInWorldFrame) {
-//   auto [contact_points, force_bases_per_contact] =
-//       lcs_factory->GetWitnessPointsAndForceBasisInWorldFrame();
+TEST_P(LCSFactoryPivotingTest, GetContactDescriptions) {
+  auto contact_descriptions = lcs_factory->GetContactDescriptions();
 
-//   int n_contacts = contact_pairs.size();
-//   // Check for number of force variables (not including slack variables)
-//   switch (contact_model) {
-//     case ContactModel::kStewartAndTrinkle:
-//       EXPECT_EQ(force_bases_per_contact[0].rows(),
-//                 1 + 2 * options.num_friction_directions);
-//       break;
-//     case ContactModel::kFrictionlessSpring:
-//       EXPECT_EQ(force_bases_per_contact[0].rows(), 1);
-//       break;
-//     case ContactModel::kAnitescu:
-//       EXPECT_EQ(force_bases_per_contact[0].rows(),
-//                 2 * options.num_friction_directions);
-//       break;
-//     default:
-//       EXPECT_TRUE(false);  // Something went wrong in parsing the contact model
-//   }
-//   EXPECT_EQ(force_bases_per_contact[0].cols(), 3);
-//   EXPECT_EQ(force_bases_per_contact.size(), n_contacts);
-//   EXPECT_EQ(contact_points.size(), n_contacts);
-// }
+  int n_contacts = contact_descriptions.size();
+  EXPECT_EQ(LCSFactory::GetNumContactVariables(options), n_contacts);
+  for (size_t i = 0; i < contact_descriptions.size(); ++i) {
+    if (contact_descriptions[i].is_slack) continue;
+    EXPECT_FALSE(contact_descriptions[i].witness_point_A.isZero());
+    EXPECT_FALSE(contact_descriptions[i].witness_point_B.isZero());
+    EXPECT_FALSE(contact_descriptions[i].force_basis.isZero());
+  }
+}
 
 TEST_P(LCSFactoryPivotingTest, FixSomeModes) {
   LCS lcs = lcs_factory->GenerateLCS();
