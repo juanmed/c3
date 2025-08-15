@@ -7,6 +7,7 @@
 #include <drake/common/find_runfiles.h>
 #include <omp.h>
 
+#include "common/logging_utils.hpp"
 #include "lcs.h"
 #include "solver_options_io.h"
 
@@ -90,7 +91,6 @@ C3::C3(const LCS& lcs, const CostMatrices& costs,
   w_sol_ = std::make_unique<std::vector<VectorXd>>();
   delta_sol_ = std::make_unique<std::vector<VectorXd>>();
   for (int i = 0; i < N_; ++i) {
-    z_sol_->push_back(Eigen::VectorXd::Zero(n_z_));
     x_sol_->push_back(Eigen::VectorXd::Zero(n_x_));
     lambda_sol_->push_back(Eigen::VectorXd::Zero(n_lambda_));
     u_sol_->push_back(Eigen::VectorXd::Zero(n_u_));
@@ -269,6 +269,7 @@ const std::vector<drake::solvers::QuadraticCost*>& C3::GetTargetCost() {
 }
 
 void C3::Solve(const VectorXd& x0) {
+  drake::log()->debug("C3::Solve called");
   auto start = std::chrono::high_resolution_clock::now();
   // Set the initial state constraint
   if (initial_state_constraint_) {
@@ -319,6 +320,8 @@ void C3::Solve(const VectorXd& x0) {
   std::vector<VectorXd> w(N_, VectorXd::Zero(n_z_));
   vector<MatrixXd> G = cost_matrices_.G;
 
+  drake::log()->debug("C3::Solve starting ADMM iterations.");
+
   for (int iter = 0; iter < options_.admm_iter; iter++) {
     ADMMStep(x0, &delta, &w, &G, iter);
   }
@@ -328,12 +331,14 @@ void C3::Solve(const VectorXd& x0) {
     WD.at(i) = delta.at(i) - w.at(i);
   }
 
+  drake::log()->debug("C3::Solve final SolveQP step.");
   *z_fin_ = SolveQP(x0, G, WD, options_.admm_iter, true);
 
   *w_sol_ = w;
   *delta_sol_ = delta;
 
   if (!options_.end_on_qp_step) {
+    drake::log()->debug("C3::Solve compute a half step.");
     *z_sol_ = delta;
     z_sol_->at(0).segment(0, n_x_) = x0;
     x_sol_->at(0) = x0;
@@ -357,6 +362,7 @@ void C3::Solve(const VectorXd& x0) {
   solve_time_ =
       std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count() /
       1e6;
+  drake::log()->debug("C3::Solve completed in {} seconds.", solve_time_);
 }
 
 void C3::ADMMStep(const VectorXd& x0, vector<VectorXd>* delta,
@@ -368,6 +374,7 @@ void C3::ADMMStep(const VectorXd& x0, vector<VectorXd>* delta,
     WD.at(i) = delta->at(i) - w->at(i);
   }
 
+  drake::log()->debug("C3::ADMMStep SolveQP step.");
   vector<VectorXd> z = SolveQP(x0, *G, WD, admm_iteration, false);
 
   vector<VectorXd> ZW(N_, VectorXd::Zero(n_z_));
@@ -375,6 +382,7 @@ void C3::ADMMStep(const VectorXd& x0, vector<VectorXd>* delta,
     ZW[i] = w->at(i) + z[i];
   }
 
+  drake::log()->debug("C3::ADMMStep SolveProjection step.");
   if (cost_matrices_.U[0].isZero(0)) {
     *delta = SolveProjection(*G, ZW, admm_iteration);
   } else {
@@ -419,10 +427,17 @@ void C3::StoreQPResults(const MathematicalProgramResult& result,
     z_sol_->at(i).segment(0, n_x_) = result.GetSolution(x_[i]);
     z_sol_->at(i).segment(n_x_, n_lambda_) = result.GetSolution(lambda_[i]);
     z_sol_->at(i).segment(n_x_ + n_lambda_, n_u_) = result.GetSolution(u_[i]);
+
+    drake::log()->trace(
+        "C3::StoreQPResults storing solution for time step {}:  "
+        "lambda = {}",
+        i, EigenToString(lambda_sol_->at(i).transpose()));
   }
 
   if (!warm_start_)
     return;  // No warm start, so no need to update warm start parameters
+
+  drake::log()->trace("C3::StoreQPResults storing warm start values.");
   for (int i = 0; i < N_ + 1; ++i) {
     if (i < N_) {
       warm_start_x_[admm_iteration][i] = result.GetSolution(x_[i]);
@@ -436,6 +451,7 @@ void C3::StoreQPResults(const MathematicalProgramResult& result,
 vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
                              const vector<VectorXd>& WD, int admm_iteration,
                              bool is_final_solve) {
+  drake::log()->trace("C3::SolveQP Adding augmented costs(G).");
   // Add or update augmented costs
   if (augmented_costs_.size() == 0) {
     for (int i = 0; i < N_; ++i)
@@ -452,16 +468,17 @@ vector<VectorXd> C3::SolveQP(const VectorXd& x0, const vector<MatrixXd>& G,
 
   SetInitialGuessQP(x0, admm_iteration);
 
+  drake::log()->trace("C3::SolveQP calling solver.");
   try {
     MathematicalProgramResult result = osqp_.Solve(prog_);
+    if (!result.is_success()) {
+      drake::log()->warn("C3::SolveQP failed to solve the QP with status: {}",
+                         result.get_solution_result());
+    }
+    StoreQPResults(result, admm_iteration, is_final_solve);
   } catch (const std::exception& e) {
     drake::log()->error("C3::SolveQP failed with exception: {}", e.what());
   }
-  if (!result.is_success()) {
-    drake::log()->warn("C3::SolveQP failed to solve the QP with status: {}",
-                       result.get_solution_result());
-  }
-  StoreQPResults(result, admm_iteration, is_final_solve);
 
   return *z_sol_;
 }
@@ -477,8 +494,11 @@ vector<VectorXd> C3::SolveProjection(const vector<MatrixXd>& U,
     omp_set_schedule(omp_sched_static, 0);
   }
 
+  // clang-format off
 #pragma omp parallel for num_threads( \
         options_.num_threads) if (use_parallelization_in_projection_)
+  // clang-format on
+
   for (int i = 0; i < N_; ++i) {
     if (warm_start_) {
       if (i == N_ - 1) {
