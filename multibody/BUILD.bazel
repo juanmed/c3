@@ -58,6 +58,19 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "surface_velocity_test",
+    srcs = ["test/surface_velocity_test.cc"],
+    data = [
+        ":test_data",
+        "//examples:example_data",
+    ],
+    deps = [
+        ":lcs_factory",
+        "@gtest//:main",
+    ],
+)
+
 filegroup(
     name = "headers",
     srcs = glob([

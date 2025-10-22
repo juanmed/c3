@@ -175,6 +175,9 @@ class LCSFactory {
    */
   static int GetNumContactVariables(const LCSFactoryOptions options);
 
+  // Utility function to test the GetNumContactVelocityBiases function
+  friend int GetNumContactVelocityBiases(const LCSFactory& lcsf);
+
  private:
   /**
    * @brief Formulates the contact dynamics for the frictionless spring contact
@@ -280,6 +283,22 @@ class LCSFactory {
    */
   std::pair<std::vector<VectorXd>, std::vector<VectorXd>> FindWitnessPoints();
 
+  /**
+   * @brief Loop over the input contacct geometries to count how many of them
+   * have the surface velocity proximity property.
+   *
+   * @param context Context of the plant input to this LCS factory.
+   * @param contact_geoms A vector of GeometryId contact pairs.
+   *
+   * @return Number of geometries that have the surface velocity proximity
+   * property.
+   */
+  int GetNumContactVelocityBiases(
+      const drake::multibody::MultibodyPlant<double>& plant,
+      const drake::systems::Context<double>& context,
+      const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
+          contact_geoms);
+
   // References to the MultibodyPlant and its contexts
   const drake::multibody::MultibodyPlant<double>& plant_;
   drake::systems::Context<double>& context_;
@@ -302,6 +321,7 @@ class LCSFactory {
   std::vector<double> mu_;      ///< Vector of friction coefficients.
   bool frictionless_;           ///< Flag indicating frictionless contacts.
   double dt_;                   ///< Time step.
+  int n_b_;                     ///< Number of contact velocity biases.
 };
 
 }  // namespace multibody

@@ -24,6 +24,7 @@ using drake::multibody::MultibodyPlant;
 using drake::systems::Context;
 
 using Eigen::MatrixXd;
+using Eigen::Vector3;
 using Eigen::VectorXd;
 
 namespace c3 {
@@ -51,7 +52,9 @@ LCSFactory::LCSFactory(
       contact_model_(GetContactModelMap().at(options.contact_model)),
       mu_(options.mu),
       frictionless_(contact_model_ == ContactModel::kFrictionlessSpring),
-      dt_(options_.dt) {}
+      dt_(options_.dt),
+      n_b_(multibody::LCSFactory::GetNumContactVelocityBiases(plant, context,
+                                                              contact_geoms)) {}
 
 void LCSFactory::ComputeContactJacobian(VectorXd& phi, MatrixXd& Jn,
                                         MatrixXd& Jt) {
@@ -565,6 +568,39 @@ int LCSFactory::GetNumContactVariables(const LCSFactoryOptions options) {
       GetContactModelMap().at(options.contact_model);
   return GetNumContactVariables(contact_model, options.num_contacts,
                                 options.num_friction_directions);
+}
+
+int LCSFactory::GetNumContactVelocityBiases(
+    const drake::multibody::MultibodyPlant<double>& plant,
+    const drake::systems::Context<double>& context,
+    const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
+        contact_geoms) {
+  int n_b = 0;
+  const auto& inspector = plant.EvalSceneGraphInspector(context);
+  std::set<drake::geometry::GeometryId> geoms_with_surface_params;
+  // Loop through the contact geometries and increase count if they
+  // have surface velocity proximity parameters
+  for (const auto& [geom_a, geom_b] : contact_geoms) {
+    std::optional<std::pair<double, Vector3<double>>> surface_params =
+        plant.GetCurrentSurfaceSpeedAndNormal(context, geom_a, inspector);
+    if (surface_params.has_value() && (geoms_with_surface_params.find(geom_a) ==
+                                          geoms_with_surface_params.end())) {
+      n_b++;
+      geoms_with_surface_params.insert(geom_a);
+    }
+    surface_params =
+        plant.GetCurrentSurfaceSpeedAndNormal(context, geom_b, inspector);
+    if (surface_params.has_value() && (geoms_with_surface_params.find(geom_b) ==
+        geoms_with_surface_params.end())) {
+      n_b++;
+      geoms_with_surface_params.insert(geom_b);
+    }
+  }
+  return n_b;
+}
+
+int GetNumContactVelocityBiases(const LCSFactory& lcsf) {
+  return lcsf.n_b_;
 }
 
 }  // namespace multibody
