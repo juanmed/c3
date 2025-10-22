@@ -46,7 +46,7 @@ bazel_dep(name = "drake")
 
 # You can also use DRAKE_COMMIT to choose a Drake release; e.g.:
 DRAKE_COMMIT = "v1.42.0"
-DRAKE_CHECKSUM = "d860c15f50397c8a946fcc79e0a58a91ebc56f2189ef9edfcac929aa04157f8b"
+DRAKE_CHECKSUM = "9b6b44dd71efbb00ba2958e439b7aa9c5b235ed65bf557f69ce7097ff86007cc"
 
 # Before changing the COMMIT, temporarily uncomment the next line so that Bazel
 # displays the suggested new value for the CHECKSUM.
@@ -56,11 +56,9 @@ DRAKE_CHECKSUM = "d860c15f50397c8a946fcc79e0a58a91ebc56f2189ef9edfcac929aa04157f
 # See README.md for instructions to use a local path, instead.
 archive_override(
     module_name = "drake",
-    urls = [x.format(DRAKE_COMMIT) for x in [
-        "https://github.com/RobotLocomotion/drake/archive/{}.tar.gz",
-    ]],
+    urls = ["https://github.com/juanmed/drake/archive/refs/heads/feature/surface_velocity_hydroelastic.zip"],
     sha256 = DRAKE_CHECKSUM,
-    strip_prefix = "drake-{}".format(DRAKE_COMMIT.lstrip("v")),
+    strip_prefix = "drake-feature-surface_velocity_hydroelastic",
 )
 
 # Use the host system /usr/bin/python3.
