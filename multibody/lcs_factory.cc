@@ -584,14 +584,14 @@ int LCSFactory::GetNumContactVelocityBiases(
     std::optional<std::pair<double, Vector3<double>>> surface_params =
         plant.GetCurrentSurfaceSpeedAndNormal(context, geom_a, inspector);
     if (surface_params.has_value() && (geoms_with_surface_params.find(geom_a) ==
-                                          geoms_with_surface_params.end())) {
+                                       geoms_with_surface_params.end())) {
       n_b++;
       geoms_with_surface_params.insert(geom_a);
     }
     surface_params =
         plant.GetCurrentSurfaceSpeedAndNormal(context, geom_b, inspector);
     if (surface_params.has_value() && (geoms_with_surface_params.find(geom_b) ==
-        geoms_with_surface_params.end())) {
+                                       geoms_with_surface_params.end())) {
       n_b++;
       geoms_with_surface_params.insert(geom_b);
     }
@@ -599,9 +599,7 @@ int LCSFactory::GetNumContactVelocityBiases(
   return n_b;
 }
 
-int GetNumContactVelocityBiases(const LCSFactory& lcsf) {
-  return lcsf.n_b_;
-}
+int GetNumContactVelocityBiases(const LCSFactory& lcsf) { return lcsf.n_b_; }
 
 }  // namespace multibody
 }  // namespace c3
