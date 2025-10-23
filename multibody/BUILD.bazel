@@ -58,15 +58,19 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "surface_velocity_fixtures",
+    hdrs = ["test/surface_velocity_fixtures.h"],
+    deps = [
+        ":lcs_factory"
+    ]
+)
+
 cc_test(
     name = "surface_velocity_test",
     srcs = ["test/surface_velocity_test.cc"],
-    data = [
-        ":test_data",
-        "//examples:example_data",
-    ],
     deps = [
-        ":lcs_factory",
+        ":surface_velocity_fixtures",
         "@gtest//:main",
     ],
 )
