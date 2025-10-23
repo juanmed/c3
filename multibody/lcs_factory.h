@@ -175,6 +175,22 @@ class LCSFactory {
    */
   static int GetNumContactVariables(const LCSFactoryOptions options);
 
+  /**
+   * @brief Loop over the input contacct geometries to count how many of them
+   * have the surface velocity proximity property.
+   *
+   * @param context Context of the plant input to this LCS factory.
+   * @param contact_geoms A vector of GeometryId contact pairs.
+   *
+   * @return Number of geometries that have the surface velocity proximity
+   * property.
+   */
+  static int GetNumContactVelocityBiases(
+    const drake::multibody::MultibodyPlant<double>& plant,
+    const drake::systems::Context<double>& context,
+    const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
+        contact_geoms);
+
   // Utility function to test the GetNumContactVelocityBiases function
   friend int GetNumContactVelocityBiases(const LCSFactory& lcsf);
 
@@ -282,22 +298,6 @@ class LCSFactory {
    * for each contact pair.
    */
   std::pair<std::vector<VectorXd>, std::vector<VectorXd>> FindWitnessPoints();
-
-  /**
-   * @brief Loop over the input contacct geometries to count how many of them
-   * have the surface velocity proximity property.
-   *
-   * @param context Context of the plant input to this LCS factory.
-   * @param contact_geoms A vector of GeometryId contact pairs.
-   *
-   * @return Number of geometries that have the surface velocity proximity
-   * property.
-   */
-  int GetNumContactVelocityBiases(
-      const drake::multibody::MultibodyPlant<double>& plant,
-      const drake::systems::Context<double>& context,
-      const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
-          contact_geoms);
 
   // References to the MultibodyPlant and its contexts
   const drake::multibody::MultibodyPlant<double>& plant_;

@@ -122,8 +122,9 @@ class SurfaceVelocityTest : public ::testing::Test {
 };
 
 TEST_F(SurfaceVelocityTest, GetNumContactVelocityBiases) {
-  std::cout << "Biases: " << GetNumContactVelocityBiases(*lcs_factory_) << std::endl;
-  EXPECT_EQ(GetNumContactVelocityBiases(*lcs_factory_), 1);
+  int n_b = lcs_factory_->GetNumContactVelocityBiases(*plant_, *plant_context_,
+                                                      contact_geometries_);
+  EXPECT_EQ(n_b, 1);
 }
 
 }  // namespace test
