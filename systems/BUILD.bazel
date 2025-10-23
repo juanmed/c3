@@ -111,6 +111,7 @@ cc_test(
     deps = [
         ":systems",
         "//core:c3_cartpole_problem",
+        "//multibody:surface_velocity_fixtures",
         "@gtest//:main",
     ],
     env_inherit = [

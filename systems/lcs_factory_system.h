@@ -127,6 +127,7 @@ class LCSFactorySystem : public drake::systems::LeafSystem<double> {
   int n_u_;       ///< Number of actuators in the plant.
   int N_;         ///< Number of time steps for the LCS.
   double dt_;     ///< Time step size for the LCS.
+  int n_b_;       ///< Number of contact velocity biases.
 
   std::unique_ptr<multibody::LCSFactory>
       lcs_factory_;  ///< Factory for creating LCS objects.

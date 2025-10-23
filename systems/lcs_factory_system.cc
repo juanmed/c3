@@ -35,6 +35,8 @@ LCSFactorySystem::LCSFactorySystem(
   n_x_ = plant.num_positions() + plant.num_velocities();
   n_lambda_ = multibody::LCSFactory::GetNumContactVariables(options);
   n_u_ = plant.num_actuators();
+  n_b_ = multibody::LCSFactory::GetNumContactVelocityBiases(plant, context,
+                                                            contact_geoms);
 
   lcs_factory_ = std::make_unique<multibody::LCSFactory>(
       plant, context, plant_ad, context_ad, contact_geoms, options);
@@ -44,11 +46,11 @@ LCSFactorySystem::LCSFactorySystem(
           .get_index();
 
   lcs_inputs_input_port_ =
-      this->DeclareVectorInputPort("u_lcs", BasicVector<double>(n_u_))
+      this->DeclareVectorInputPort("u_lcs", BasicVector<double>(n_u_ + n_b_))
           .get_index();
 
-  auto lcs_placeholder =
-      LCS::CreatePlaceholderLCS(n_x_, n_u_, n_lambda_, options.N, options.dt);
+  auto lcs_placeholder = LCS::CreatePlaceholderLCS(n_x_, n_u_ + n_b_, n_lambda_,
+                                                   options.N, options.dt);
   lcs_port_ = this->DeclareAbstractOutputPort("lcs", lcs_placeholder,
                                               &LCSFactorySystem::OutputLCS)
                   .get_index();
@@ -69,7 +71,7 @@ void LCSFactorySystem::OutputLCS(const drake::systems::Context<double>& context,
   const auto lcs_u = static_cast<const BasicVector<double>*>(
       this->EvalVectorInput(context, lcs_inputs_input_port_));
   DRAKE_DEMAND(lcs_x->get_data().size() == n_x_);
-  DRAKE_DEMAND(lcs_u->get_value().size() == n_u_);
+  DRAKE_DEMAND(lcs_u->get_value().size() == n_u_ + n_b_);
 
   lcs_factory_->UpdateStateAndInput(lcs_x->get_data(), lcs_u->get_value());
   *output_lcs = lcs_factory_->GenerateLCS();
@@ -84,7 +86,7 @@ void LCSFactorySystem::OutputLCSContactJacobian(
       this->EvalVectorInput(context, lcs_inputs_input_port_));
 
   DRAKE_DEMAND(lcs_x->get_data().size() == n_x_);
-  DRAKE_DEMAND(lcs_u->get_value().size() == n_u_);
+  DRAKE_DEMAND(lcs_u->get_value().size() == n_u_ + n_b_);
   lcs_factory_->UpdateStateAndInput(lcs_x->get_data(), lcs_u->get_value());
   *output = lcs_factory_->GetContactJacobianAndPoints();
 }
