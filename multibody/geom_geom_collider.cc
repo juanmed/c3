@@ -56,6 +56,14 @@ GeomGeomCollider<T>::GetGeometryQueryResult(const Context<T>& context) const {
       inspector.GetPoseInFrame(geometry_id_B_).template cast<T>() *
       signed_distance_pair.p_BCb;
 
+  auto f = inspector.GetPoseInFrame(geometry_id_A_).template cast<T>();
+  std::cout << "pA: " << signed_distance_pair.p_ACa.transpose() << std::endl;
+  std::cout << "RA: " << f.rotation().ToQuaternion() << std::endl;
+  std::cout << "tA: " << f.translation().transpose() << std::endl;
+  f = inspector.GetPoseInFrame(geometry_id_B_).template cast<T>();
+  std::cout << "pB: " << signed_distance_pair.p_BCb.transpose() << std::endl;
+  std::cout << "RB: " << f.rotation().ToQuaternion() << std::endl;
+  std::cout << "tB: " << f.translation().transpose() << std::endl;
   return GeometryQueryResult{signed_distance_pair,
                              frame_A_id,
                              frame_B_id,
@@ -119,7 +127,7 @@ std::pair<T, MatrixX<T>> GeomGeomCollider<T>::EvalPolytope(
 template <typename T>
 Matrix<double, Eigen::Dynamic, 3>
 GeomGeomCollider<T>::ComputePolytopeForceBasis(
-    const int num_friction_directions) const {
+    const int num_friction_directions) {
   // Build friction basis
   Matrix<double, Eigen::Dynamic, 3> force_basis(2 * num_friction_directions + 1,
                                                 3);
@@ -154,7 +162,7 @@ std::pair<T, MatrixX<T>> GeomGeomCollider<T>::EvalPlanar(
 template <typename T>
 Eigen::Matrix3d GeomGeomCollider<T>::ComputePlanarForceBasis(
     const Eigen::Vector3d& contact_normal,
-    const Eigen::Vector3d& planar_normal) const {
+    const Eigen::Vector3d& planar_normal) {
   Eigen::Matrix3d force_basis = Eigen::Matrix3d::Zero();
 
   // First row is the contact normal, projected to the plane

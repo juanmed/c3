@@ -101,6 +101,43 @@ class GeomGeomCollider {
   std::pair<drake::VectorX<double>, drake::VectorX<double>> CalcWitnessPoints(
       const drake::systems::Context<double>& context);
 
+  /**
+   * @brief Computes the force basis for a polytope approximation of a friction
+   * cone.
+   *
+   * This function calculates a set of vectors that define the
+   * directions along which contact forces can be applied. These vectors are
+   * used to approximate a friction cone as a polytope. The number of vectors
+   * determines the fidelity of the approximation.
+   *
+   * @param num_friction_directions The number of friction directions to use in
+   *        the polytope approximation. This value determines the number of
+   *        edges in the polytope and must be greater than 1.
+   *
+   * @return A matrix whose rows form  basis vectors for the
+   *         contact forces. The first row is the contact normal, and the
+   *         remaining rows are tangent vectors that define the edges of the
+   *         polytope.
+   */
+  static Eigen::Matrix<double, Eigen::Dynamic, 3> ComputePolytopeForceBasis(
+      const int num_friction_directions);
+
+  /**
+   * @brief Computes the force basis for a 2D planar problem.
+   *
+   * Given a contact normal and a planar normal, this function computes an
+   * orthonormal basis for the contact forces in the 2D plane.
+   *
+   * @param contact_normal The normal vector to the contact surface.
+   * @param planar_normal The normal vector to the planar system, defining the
+   *        plane in which the system operates.
+   * @return A 3x3 matrix whose rows form an orthonormal basis for the
+   *         contact forces.
+   */
+  static Eigen::Matrix3d ComputePlanarForceBasis(
+      const Eigen::Vector3d& contact_normal,
+      const Eigen::Vector3d& planar_normal);
+
  private:
   /**
    * @brief A struct to hold the results of a geometry query.
@@ -167,43 +204,6 @@ class GeomGeomCollider {
       Eigen::Matrix<double, Eigen::Dynamic, 3> force_basis,
       drake::multibody::JacobianWrtVariable wrt,
       const drake::math::RotationMatrix<T>& R_WC);
-
-  /**
-   * @brief Computes the force basis for a polytope approximation of a friction
-   * cone.
-   *
-   * This function calculates a set of vectors that define the
-   * directions along which contact forces can be applied. These vectors are
-   * used to approximate a friction cone as a polytope. The number of vectors
-   * determines the fidelity of the approximation.
-   *
-   * @param num_friction_directions The number of friction directions to use in
-   *        the polytope approximation. This value determines the number of
-   *        edges in the polytope and must be greater than 1.
-   *
-   * @return A matrix whose columns form  basis vectors for the
-   *         contact forces. The first column is the contact normal, and the
-   *         remaining columns are tangent vectors that define the edges of the
-   *         polytope.
-   */
-  Eigen::Matrix<double, Eigen::Dynamic, 3> ComputePolytopeForceBasis(
-      const int num_friction_directions) const;
-
-  /**
-   * @brief Computes the force basis for a 2D planar problem.
-   *
-   * Given a contact normal and a planar normal, this function computes an
-   * orthonormal basis for the contact forces in the 2D plane.
-   *
-   * @param contact_normal The normal vector to the contact surface.
-   * @param planar_normal The normal vector to the planar system, defining the
-   *        plane in which the system operates.
-   * @return A 3x3 matrix whose columns form an orthonormal basis for the
-   *         contact forces.
-   */
-  Eigen::Matrix3d ComputePlanarForceBasis(
-      const Eigen::Vector3d& contact_normal,
-      const Eigen::Vector3d& planar_normal) const;
 
   /**
    * @brief Gets the geometry query result.
