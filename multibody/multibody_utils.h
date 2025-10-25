@@ -17,6 +17,14 @@ void SetContext(const drake::multibody::MultibodyPlant<T>& plant,
                 const Eigen::Ref<const drake::VectorX<T>>& input,
                 drake::systems::Context<T>* context);
 
+template <typename T>
+void SetContext(const drake::multibody::MultibodyPlant<T>& plant,
+                const Eigen::Ref<const drake::VectorX<T>>& state,
+                const Eigen::Ref<const drake::VectorX<T>>& input,
+                const Eigen::Ref<const drake::VectorX<T>>& constraint_inputs,
+                const std::set<drake::geometry::GeometryId>& geoms,
+                drake::systems::Context<T>* context);
+
 /// Update an existing MultibodyPlant context, setting corresponding positions.
 /// Will only set if value if changed from current value.
 template <typename T>
@@ -45,6 +53,14 @@ template <typename T>
 void SetInputsIfNew(const drake::multibody::MultibodyPlant<T>& plant,
                     const Eigen::Ref<const drake::VectorX<T>>& u,
                     drake::systems::Context<T>* context);
+
+/// Update an existing MultibodyPlant context, setting corresponding surface velocities.
+/// Will only set if value if changed from current value.
+template <typename T>
+void SetSurfaceVelocitiesIfNew(const drake::multibody::MultibodyPlant<T>& plant,
+                               const Eigen::Ref<const drake::VectorX<T>>& u,
+                               const std::set<drake::geometry::GeometryId>& geoms,
+                               drake::systems::Context<T>* context);
 
 }  // namespace multibody
 }  // namespace c3

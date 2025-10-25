@@ -350,6 +350,7 @@ TEST_F(SurfaceVelocityTest, InputOutputPortSizesWithSurfaceVelocity) {
 
   int n_b = lcs_factory_->GetNumContactVelocityBiases(*plant_, *plant_context_,
                                                       contact_geometries_);
+
   // Check input port sizes and output port existence
   EXPECT_EQ(lcs_factory_system->get_input_port_lcs_state().size(),
             plant_->num_positions() + plant_->num_velocities() +
@@ -358,6 +359,12 @@ TEST_F(SurfaceVelocityTest, InputOutputPortSizesWithSurfaceVelocity) {
             plant_->num_actuators() + n_b);
   EXPECT_NO_THROW(lcs_factory_system->get_output_port_lcs());
   EXPECT_NO_THROW(lcs_factory_system->get_output_port_lcs_contact_jacobian());
+
+  std::set<drake::geometry::GeometryId> geom_set =
+      GetSetOfGeometriesWithSurfaceVelocity(*lcs_factory_);
+
+  EXPECT_EQ(geom_set.size(), 1);
+  EXPECT_TRUE(geom_set.contains(ground_geometry_id_));
 }
 
 TEST_F(SurfaceVelocityTest, OutputLCSIsValidWithSurfaceVelocity) {
@@ -380,7 +387,7 @@ TEST_F(SurfaceVelocityTest, OutputLCSIsValidWithSurfaceVelocity) {
   const auto& lcs = lcs_output->get_data(0)->get_value<c3::LCS>();
   EXPECT_EQ(lcs.num_states(),
             plant_->num_positions() + plant_->num_velocities());
-  EXPECT_EQ(lcs.num_inputs(), plant_->num_actuators());
+  EXPECT_EQ(lcs.num_inputs(), plant_->num_actuators() + n_b);
   EXPECT_EQ(lcs.num_lambdas(), LCSFactory::GetNumContactVariables(options_));
   EXPECT_EQ(lcs.dt(), options_.dt);
   EXPECT_EQ(lcs.N(), options_.N);

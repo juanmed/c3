@@ -54,7 +54,9 @@ LCSFactory::LCSFactory(
       frictionless_(contact_model_ == ContactModel::kFrictionlessSpring),
       dt_(options_.dt),
       n_b_(multibody::LCSFactory::GetNumContactVelocityBiases(plant, context,
-                                                              contact_geoms)) {}
+                                                              contact_geoms)) {
+  ComputeSetOfGeometriesWithSurfaceVelocity();
+}
 
 void LCSFactory::ComputeContactJacobian(VectorXd& phi, MatrixXd& Jn,
                                         MatrixXd& Jt) {
@@ -106,13 +108,24 @@ LCSFactory::FindWitnessPoints() {
 void LCSFactory::UpdateStateAndInput(
     const Eigen::Ref<const drake::VectorX<double>>& state,
     const Eigen::Ref<const drake::VectorX<double>>& input) {
-  SetContext<double>(plant_, state, input, &context_);
+  if (n_b_) {
+    SetContext<double>(plant_, state, input.head(n_u_), input.tail(n_b_),
+                       geoms_with_surface_velocity_, &context_);
+  } else {
+    SetContext<double>(plant_, state, input, &context_);
+  }
   drake::VectorX<double> q_v_u(n_x_ + n_u_);
   q_v_u << state, input;
   drake::AutoDiffVecXd q_v_u_ad = drake::math::InitializeAutoDiff(q_v_u);
   SetPositionsAndVelocitiesIfNew<AutoDiffXd>(plant_ad_, q_v_u_ad.head(n_x_),
                                              &context_ad_);
-  SetInputsIfNew<AutoDiffXd>(plant_ad_, q_v_u_ad.tail(n_u_), &context_ad_);
+  SetInputsIfNew<AutoDiffXd>(plant_ad_, q_v_u_ad(Eigen::seqN(n_x_, n_u_)),
+                             &context_ad_);
+  if (n_b_) {
+    SetSurfaceVelocitiesIfNew<AutoDiffXd>(plant_ad_, q_v_u_ad.tail(n_b_),
+                                          geoms_with_surface_velocity_,
+                                          &context_ad_);
+  }
 }
 // Linearizes the dynamics of a multibody plant_ into a Linear Complementarity
 // System (LCS)
@@ -148,7 +161,7 @@ LCS LCSFactory::GenerateLCS() {
       M.ldlt().solve(tau_g + tau_u + f_app.generalized_forces() - C);
 
   // f(q*, v*, u*)
-  VectorXd f_qvu_norminal = ExtractValue(f_qvu);
+  VectorXd f_qvu_nominal = ExtractValue(f_qvu);
   // Jacobian of f(q, v, u) w.r.t. q, v, u
   MatrixXd Jf = ExtractGradient(f_qvu);
   if (Jf.cols() != n_x_ + n_u_) {
@@ -163,7 +176,7 @@ LCS LCSFactory::GenerateLCS() {
       plant_.get_actuation_input_port().Eval(context_);
   VectorXd Jf_qvu_nominal = Jf * qvu_nominal;
   // dᵥ = f(q*, v*, u*) - Jf * (q*, v*, u*)
-  VectorXd d_v = f_qvu_norminal - Jf_qvu_nominal;
+  VectorXd d_v = f_qvu_nominal - Jf_qvu_nominal;
 
   // State dependent mapping q̇ = N(q)v
   Eigen::SparseMatrix<double> Nqt;
@@ -176,7 +189,7 @@ LCS LCSFactory::GenerateLCS() {
 
   // Matrices for contact-free dynamics
   MatrixXd A(n_x_, n_x_);
-  MatrixXd B(n_x_, n_u_);
+  MatrixXd B(n_x_, n_u_ + n_b_);
   VectorXd d(n_x_);
 
   // Formulate A matrix
@@ -189,7 +202,9 @@ LCS LCSFactory::GenerateLCS() {
   // Formulate B matrix
   B.block(0, 0, n_q_, n_u_) = dt_ * dt_ * qdotNv * Jf_u;
   B.block(n_q_, 0, n_v_, n_u_) = dt_ * Jf_u;
-
+  if (n_b_) {
+    B.block(0, n_u_, n_x_, n_b_) = MatrixXd::Zero(n_x_, n_b_);
+  }
   // Formulate d vector
   d.head(n_q_) = dt_ * dt_ * qdotNv * d_v;
   d.tail(n_v_) = dt_ * d_v;
@@ -208,13 +223,13 @@ LCS LCSFactory::GenerateLCS() {
   ComputeContactJacobian(phi, Jn, Jt);
 
   /*============== Calculate Contact Jacobians ==================*/
-  /*============== Formulate D, E, F, G and c Matrices ==================*/
+  /*============== Formulate D, E, F, H and c Matrices ==================*/
 
   // Matrices with contact variables
   MatrixXd D = MatrixXd::Zero(n_x_, n_lambda_);
   MatrixXd E = MatrixXd::Zero(n_lambda_, n_x_);
   MatrixXd F = MatrixXd::Zero(n_lambda_, n_lambda_);
-  MatrixXd H = MatrixXd::Zero(n_lambda_, n_u_);
+  MatrixXd H = MatrixXd::Zero(n_lambda_, n_u_ + n_b_);
   VectorXd c = VectorXd::Zero(n_lambda_);
 
   if (contact_model_ == ContactModel::kStewartAndTrinkle) {
@@ -235,6 +250,7 @@ LCS LCSFactory::GenerateLCS() {
 
   return LCS(A, B, D, d, E, F, H, c, options_.N, dt_);  // Return the system;
 }
+
 void LCSFactory::FormulateFrictionlessSpringContactDynamics(
     const VectorXd& phi, const MatrixXd& Jn, const MatrixXd& qdotNv,
     const double& spring_stiffness, MatrixX<AutoDiffXd>& M, MatrixXd& D,
@@ -364,7 +380,10 @@ void LCSFactory::FormulateAnitescuContactDynamics(
   F = dt_ * J_c * MinvJ_c_T;
 
   // Formulate H matrix (force-input)
-  H = dt_ * J_c * Jf_u;
+  H.block(0, 0, 2 * n_contacts_ * n_friction_directions_, n_u_) =
+      dt_ * J_c * Jf_u;
+  if (n_b_) {
+  }
 
   // Formulate c vector
   c = E_t.transpose() * phi / dt_ + dt_ * J_c * d_v -
@@ -599,7 +618,28 @@ int LCSFactory::GetNumContactVelocityBiases(
   return n_b;
 }
 
-int GetNumContactVelocityBiases(const LCSFactory& lcsf) { return lcsf.n_b_; }
+void LCSFactory::ComputeSetOfGeometriesWithSurfaceVelocity() {
+  const auto& inspector = plant_.EvalSceneGraphInspector(context_);
+  // Loop through the contact geometries and insert only those with
+  // surface velocity parameters
+  for (const auto& [geom_a, geom_b] : contact_pairs_) {
+    std::optional<std::pair<double, Vector3<double>>> surface_params =
+        plant_.GetCurrentSurfaceSpeedAndNormal(context_, geom_a, inspector);
+    if (surface_params.has_value()) {
+      geoms_with_surface_velocity_.insert(geom_a);
+    }
+    surface_params =
+        plant_.GetCurrentSurfaceSpeedAndNormal(context_, geom_b, inspector);
+    if (surface_params.has_value()) {
+      geoms_with_surface_velocity_.insert(geom_b);
+    }
+  }
+}
+
+std::set<drake::geometry::GeometryId> GetSetOfGeometriesWithSurfaceVelocity(
+    const LCSFactory& lcsf) {
+  return lcsf.geoms_with_surface_velocity_;
+}
 
 }  // namespace multibody
 }  // namespace c3

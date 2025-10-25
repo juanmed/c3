@@ -191,8 +191,8 @@ class LCSFactory {
     const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
         contact_geoms);
 
-  // Utility function to test the GetNumContactVelocityBiases function
-  friend int GetNumContactVelocityBiases(const LCSFactory& lcsf);
+  friend std::set<drake::geometry::GeometryId>
+  GetSetOfGeometriesWithSurfaceVelocity(const LCSFactory& lcsf);
 
  private:
   /**
@@ -299,6 +299,13 @@ class LCSFactory {
    */
   std::pair<std::vector<VectorXd>, std::vector<VectorXd>> FindWitnessPoints();
 
+  /**
+   * @breif Fill in a set of geometries with surface velocity parameters. This
+   * will later be used to define the order inputs that correspond to surface
+   * velocity.
+   */
+  void ComputeSetOfGeometriesWithSurfaceVelocity();
+
   // References to the MultibodyPlant and its contexts
   const drake::multibody::MultibodyPlant<double>& plant_;
   drake::systems::Context<double>& context_;
@@ -321,7 +328,10 @@ class LCSFactory {
   std::vector<double> mu_;      ///< Vector of friction coefficients.
   bool frictionless_;           ///< Flag indicating frictionless contacts.
   double dt_;                   ///< Time step.
-  int n_b_;                     ///< Number of contact velocity biases.
+  int n_b_{0};                  ///< Number of contact velocity biases.
+  std::set<drake::geometry::GeometryId>
+      geoms_with_surface_velocity_;  ///< Geometries with surface velocity
+                                     ///< parameters
 };
 
 }  // namespace multibody

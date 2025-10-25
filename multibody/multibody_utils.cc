@@ -73,6 +73,19 @@ void SetContext(const MultibodyPlant<T>& plant,
 }
 
 template <typename T>
+void SetContext(const MultibodyPlant<T>& plant,
+                const Eigen::Ref<const VectorX<T>>& state,
+                const Eigen::Ref<const VectorX<T>>& input,
+                const Eigen::Ref<const VectorX<T>>& constraint_input,
+                const std::set<drake::geometry::GeometryId>& geoms,
+                Context<T>* context) {
+  SetPositionsIfNew<T>(plant, state.head(plant.num_positions()), context);
+  SetVelocitiesIfNew<T>(plant, state.tail(plant.num_velocities()), context);
+  SetInputsIfNew<T>(plant, input, context);
+  SetSurfaceVelocitiesIfNew<T>(plant, constraint_input, geoms, context);
+}
+
+template <typename T>
 void SetPositionsAndVelocitiesIfNew(const MultibodyPlant<T>& plant,
                                     const Eigen::Ref<const VectorX<T>>& x,
                                     Context<T>* context) {
@@ -108,6 +121,25 @@ void SetInputsIfNew(const MultibodyPlant<T>& plant,
   }
 }
 
+template <typename T>
+void SetSurfaceVelocitiesIfNew(
+    const drake::multibody::MultibodyPlant<T>& plant,
+    const Eigen::Ref<const drake::VectorX<T>>& u,
+    const std::set<drake::geometry::GeometryId>& geoms,
+    drake::systems::Context<T>* context) {
+  int i = 0;
+  for (const auto& g : geoms) {
+    if (auto input_port = plant.get_surface_speed_input_port(g);
+        input_port.has_value()) {
+      if (!input_port.value().get().HasValue(*context) ||
+          !AreVectorsEqual(u, input_port.value().get().Eval(*context))) {
+        input_port.value().get().FixValue(context, u(i));
+      }
+    }
+    i++;
+  }
+}
+
 template void SetContext(const MultibodyPlant<double>& plant,
                          const Eigen::Ref<const VectorXd>& state,
                          const Eigen::Ref<const VectorXd>&,
@@ -116,6 +148,20 @@ template void SetContext(const MultibodyPlant<AutoDiffXd>& plant,
                          const Eigen::Ref<const AutoDiffVecXd>& state,
                          const Eigen::Ref<const AutoDiffVecXd>&,
                          Context<AutoDiffXd>* context);  // NOLINT
+template void SetContext(
+    const MultibodyPlant<double>& plant,
+    const Eigen::Ref<const VectorX<double>>& state,
+    const Eigen::Ref<const VectorX<double>>& input,
+    const Eigen::Ref<const VectorX<double>>& constraint_inputs,
+    const std::set<drake::geometry::GeometryId>& geoms,
+    Context<double>* context);
+template void SetContext(
+    const MultibodyPlant<AutoDiffXd>& plant,
+    const Eigen::Ref<const AutoDiffVecXd>& state,
+    const Eigen::Ref<const AutoDiffVecXd>& input,
+    const Eigen::Ref<const AutoDiffVecXd>& constraint_inputs,
+    const std::set<drake::geometry::GeometryId>& geoms,
+    Context<AutoDiffXd>* context);
 template void SetPositionsAndVelocitiesIfNew(
     const MultibodyPlant<AutoDiffXd>&, const Eigen::Ref<const AutoDiffVecXd>&,
     Context<AutoDiffXd>*);  // NOLINT
@@ -139,6 +185,14 @@ template void SetInputsIfNew(const MultibodyPlant<AutoDiffXd>&,
                              Context<AutoDiffXd>*);  // NOLINT
 template void SetInputsIfNew(const MultibodyPlant<double>&,
                              const Eigen::Ref<const VectorXd>&,
+                             Context<double>*);  // NOLINT
+template void SetSurfaceVelocitiesIfNew(const MultibodyPlant<AutoDiffXd>&,
+                             const Eigen::Ref<const AutoDiffVecXd>&,
+                             const std::set<drake::geometry::GeometryId>&,
+                             Context<AutoDiffXd>*);  // NOLINT
+template void SetSurfaceVelocitiesIfNew(const MultibodyPlant<double>&,
+                             const Eigen::Ref<const VectorXd>&,
+                             const std::set<drake::geometry::GeometryId>&,
                              Context<double>*);  // NOLINT
 }  // namespace multibody
 }  // namespace c3
