@@ -75,6 +75,15 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "multibody_utils_test",
+    srcs = ["test/multibody_utils_test.cc"],
+    deps = [
+        ":lcs_factory",
+        "@gtest//:main",
+    ],
+)
+
 filegroup(
     name = "headers",
     srcs = glob([
