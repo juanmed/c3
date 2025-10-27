@@ -327,6 +327,46 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
   H.block(n_contacts_, 0, n_contacts_, n_u_) = dt_ * dt_ * Jn * Jf_u;
   H.block(2 * n_contacts_, 0, 2 * n_contacts_ * n_friction_directions_, n_u_) =
       dt_ * Jt * Jf_u;
+  if (n_b_) {
+    const Eigen::Matrix<double, Eigen::Dynamic, 3> fb = GetForceBasis();
+    for (int i = 0; i < n_contacts_; i++) {
+      multibody::GeomGeomCollider collider(plant_, contact_pairs_[i]);
+      const auto& query_result = collider.GetGeometryQueryResult(context_);
+      const auto& [geom_a, geom_b] = contact_pairs_[i];
+      if (auto iter = geoms_with_surface_velocity_.find(geom_a);
+          iter != geoms_with_surface_velocity_.end()) {
+        int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
+        const Eigen::Vector3d sv =
+            plant_
+                .GetSurfaceVelocity(context_, geom_a, inspector_,
+                                    drake::math::RigidTransformd::Identity(),
+                                    query_result.signed_distance_pair.p_ACa)
+                .normalized();
+        double n_J_a = fb.row(0) * sv;
+        Eigen::VectorXd t_J_a =
+            fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
+        H(n_contacts_ + i, n_u_ + idx) = n_J_a;
+        H.block(2 * n_contacts_ + i, n_u_ + idx, 2 * n_friction_directions_,
+                1) = t_J_a;
+      }
+      if (auto iter = geoms_with_surface_velocity_.find(geom_b);
+          iter != geoms_with_surface_velocity_.end()) {
+        int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
+        const Eigen::Vector3d sv =
+            plant_
+                .GetSurfaceVelocity(context_, geom_b, inspector_,
+                                    drake::math::RigidTransformd::Identity(),
+                                    query_result.signed_distance_pair.p_BCb)
+                .normalized();
+        double n_J_b = fb.row(0) * sv;
+        Eigen::VectorXd t_J_b =
+            fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
+        H(n_contacts_ + i, n_u_ + idx) = n_J_b;
+        H.block(2 * n_contacts_ + i, n_u_ + idx, 2 * n_friction_directions_,
+                1) = t_J_b;
+      }
+    }
+  }
 
   // Formulate c vector
   c.segment(n_contacts_, n_contacts_) =
@@ -398,11 +438,13 @@ void LCSFactory::FormulateAnitescuContactDynamics(
       if (auto iter = geoms_with_surface_velocity_.find(geom_a);
           iter != geoms_with_surface_velocity_.end()) {
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
-        // Get surface velocity in the frame of the geometry
+        // Get surface velocity vector in the frame of the geometry
         Eigen::Vector3d sv =
-            plant_.GetSurfaceVelocity(context_, geom_a, inspector_,
-                                      drake::math::RigidTransformd::Identity(),
-                                      query_result.signed_distance_pair.p_ACa);
+            plant_
+                .GetSurfaceVelocity(context_, geom_a, inspector_,
+                                    drake::math::RigidTransformd::Identity(),
+                                    query_result.signed_distance_pair.p_ACa)
+                .normalized();
         Eigen::VectorXd n_J_a = Ek * fb.row(0) * sv;
         Eigen::VectorXd t_J_a =
             fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
@@ -414,14 +456,16 @@ void LCSFactory::FormulateAnitescuContactDynamics(
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
         // Get surface velocity in the frame of the geometry
         Eigen::Vector3d sv =
-            plant_.GetSurfaceVelocity(context_, geom_b, inspector_,
-                                      drake::math::RigidTransformd::Identity(),
-                                      query_result.signed_distance_pair.p_BCb);
-        Eigen::VectorXd n_J_a = Ek * fb.row(0) * sv;
-        Eigen::VectorXd t_J_a =
+            plant_
+                .GetSurfaceVelocity(context_, geom_b, inspector_,
+                                    drake::math::RigidTransformd::Identity(),
+                                    query_result.signed_distance_pair.p_BCb)
+                .normalized();
+        Eigen::VectorXd n_J_b = Ek * fb.row(0) * sv;
+        Eigen::VectorXd t_J_b =
             fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
         H.block(i * 2 * n_friction_directions_, n_u_ + idx,
-                2 * n_friction_directions_, 1) = -(n_J_a + t_J_a);
+                2 * n_friction_directions_, 1) = -(n_J_b + t_J_b);
       }
     }
   }
