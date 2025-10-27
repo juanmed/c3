@@ -5,6 +5,7 @@
 #include "multibody/geom_geom_collider.h"
 #include "multibody/lcs_factory.h"
 #include "multibody/multibody_utils.h"
+#include "multibody/test/surface_velocity_fixtures.h"
 
 #include "drake/common/sorted_pair.h"
 #include "drake/multibody/parsing/parser.h"
@@ -264,6 +265,22 @@ INSTANTIATE_TEST_SUITE_P(ContactModelTests, LCSFactoryPivotingTest,
                                            std::tuple("stewart_and_trinkle", 2),
                                            std::tuple("anitescu", 1),
                                            std::tuple("anitescu", 2)));
+
+TEST_F(SurfaceVelocityTest, SurfaceVelocityStewartTrinkle) {
+  LCS lcs = lcs_factory_->GenerateLCS();
+  std::cout << "StewartTrinkle H: \n" << lcs.H().at(0) << std::endl;
+  EXPECT_EQ(lcs.H().at(0).cols(), 2);
+  EXPECT_TRUE(true);
+}
+
+TEST_F(SurfaceVelocityTest, SurfaceVelocityAnitescu) {
+  options_.contact_model = "anitescu";
+  lcs_factory_ = std::make_unique<LCSFactory>(*plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_, contact_geometries_, options_);
+  LCS lcs = lcs_factory_->GenerateLCS();
+  std::cout << "Anitescu H: \n" << lcs.H().at(0) << std::endl;
+  EXPECT_EQ(lcs.H().at(0).cols(), 2);  
+  std::cout << "Anitescu LCS: \n" << lcs << std::endl;
+}
 
 }  // namespace test
 }  // namespace multibody

@@ -16,6 +16,7 @@
 #include "drake/math/rigid_transform.h"
 #include "drake/multibody/plant/multibody_plant.h"
 #include "drake/multibody/plant/multibody_plant_config_functions.h"
+#include "drake/multibody/tree/prismatic_joint.h"
 #include "drake/multibody/tree/spatial_inertia.h"
 #include "drake/systems/framework/diagram.h"
 #include "drake/systems/framework/diagram_builder.h"
@@ -63,6 +64,7 @@ class SurfaceVelocityTest : public ::testing::Test {
         plant_->world_body(),
         drake::math::RigidTransformd(Eigen::Vector3d(0., 0., 0.)), HalfSpace(),
         "ground_collision", ground_props);
+    plant_->DeclareSurfaceVelocityInputPort(ground_geometry_id_, Eigen::Vector3d(0., 1., 0.), 1.0);
 
     // Add sphere on top of ground
     const double radius = 0.05;
@@ -78,6 +80,12 @@ class SurfaceVelocityTest : public ::testing::Test {
     sphere_geometry_id_ = plant_->RegisterCollisionGeometry(
         sphere_body, RigidTransform<double>(), Sphere(radius),
         "sphere_collision", sphere_props);
+
+    const Eigen::Vector3d belt_axis = Eigen::Vector3d::UnitX();
+    auto& belt_joint = plant_->AddJoint<drake::multibody::PrismaticJoint>(
+        "sphere_slider", plant_->world_body(), std::nullopt, sphere_body,
+        std::nullopt, belt_axis);
+    plant_->AddJointActuator("sphere_actuator", belt_joint);
 
     plant_->Finalize();
 
@@ -100,9 +108,14 @@ class SurfaceVelocityTest : public ::testing::Test {
     options_.N = 1;
     options_.dt = 0.01;
 
+    drake::VectorX<double> state =
+        VectorXd::Zero(plant_->num_positions() + plant_->num_velocities());
+    drake::VectorX<double> input = VectorXd::Zero(plant_->num_actuators());
+
     lcs_factory_ = std::make_unique<LCSFactory>(
         *plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_,
         contact_geometries_, options_);
+    lcs_factory_->UpdateStateAndInput(state, input);
   }
 
   DiagramBuilder<double> builder_;
