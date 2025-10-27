@@ -81,12 +81,12 @@ LCS LCS::CreatePlaceholderLCS(int n_x, int n_u, int n_lambda, int N,
 }
 
 std::ostream& operator<<(std::ostream& os, const LCS& m) {
-  os << "LCS with dimensions: " << m.n_ << " states, " << m.m_ << " forces, "
+  os << "LCS with dimensions: " << m.n_ << " states, " << m.m_ << " contact forces, "
      << m.k_ << " inputs, timestep of " << m.dt_ << "  and horizon of " << m.N_
      << ".";
-  os << "\nA: " << m.A_[0] << "\nB: " << m.B_[0] << "\nD: " << m.D_[0]
-     << "\nd: " << m.d_[0] << "\nE: " << m.E_[0] << "\nF: " << m.F_[0]
-     << "\nH: " << m.H_[0] << "\nc: " << m.c_[0];
+  os << "\nA: \n" << m.A_[0] << "\nB: \n" << m.B_[0] << "\nD: \n" << m.D_[0]
+     << "\nd: \n" << m.d_[0] << "\nE: \n" << m.E_[0] << "\nF: \n" << m.F_[0]
+     << "\nH: \n" << m.H_[0] << "\nc: \n" << m.c_[0];
   return os;
 };
 
