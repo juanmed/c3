@@ -54,7 +54,9 @@ LCSFactory::LCSFactory(
       frictionless_(contact_model_ == ContactModel::kFrictionlessSpring),
       dt_(options_.dt),
       n_b_(multibody::LCSFactory::GetNumContactVelocityBiases(plant, context,
-                                                              contact_geoms)) {
+                                                              contact_geoms)),
+      inspector_(
+          multibody::LCSFactory::getSceneGraphInspector(plant, context)) {
   ComputeSetOfGeometriesWithSurfaceVelocity();
 }
 
@@ -65,13 +67,12 @@ void LCSFactory::ComputeContactJacobian(VectorXd& phi, MatrixXd& Jn,
   Jt.resize(2 * n_contacts_ * n_friction_directions_,
             n_v_);  // Tangential contact Jacobian
 
-  Eigen::Vector3d planar_normal = {0, 1, 0};
   double phi_i;
   MatrixX<double> J_i;
   for (int i = 0; i < n_contacts_; i++) {
     multibody::GeomGeomCollider collider(plant_, contact_pairs_[i]);
     if (frictionless_ || n_friction_directions_ == 1)
-      std::tie(phi_i, J_i) = collider.EvalPlanar(context_, planar_normal);
+      std::tie(phi_i, J_i) = collider.EvalPlanar(context_, planar_normal_);
     else
       std::tie(phi_i, J_i) =
           collider.EvalPolytope(context_, n_friction_directions_);
@@ -382,7 +383,47 @@ void LCSFactory::FormulateAnitescuContactDynamics(
   // Formulate H matrix (force-input)
   H.block(0, 0, 2 * n_contacts_ * n_friction_directions_, n_u_) =
       dt_ * J_c * Jf_u;
+
   if (n_b_) {
+    const Eigen::Vector3d Ek =
+        Eigen::Vector3d::Ones(2 * n_friction_directions_);
+    const Eigen::Matrix<double, Eigen::Dynamic, 3> fb = GetForceBasis();
+    // Loop through all contact pairs, and add surface velocity jacobian
+    // for each geometry with corresponding parameters
+    for (int i = 0; i < n_contacts_; i++) {
+      multibody::GeomGeomCollider collider(plant_, contact_pairs_[i]);
+      // Get geometry query result to access witness points
+      const auto query_result = collider.GetGeometryQueryResult(context_);
+      const auto& [geom_a, geom_b] = contact_pairs_[i];
+      if (auto iter = geoms_with_surface_velocity_.find(geom_a);
+          iter != geoms_with_surface_velocity_.end()) {
+        int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
+        // Get surface velocity in the frame of the geometry
+        Eigen::Vector3d sv =
+            plant_.GetSurfaceVelocity(context_, geom_a, inspector_,
+                                      drake::math::RigidTransformd::Identity(),
+                                      query_result.signed_distance_pair.p_ACa);
+        Eigen::VectorXd n_J_a = Ek * fb.row(0) * sv;
+        Eigen::VectorXd t_J_a =
+            fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
+        H.block(i * 2 * n_friction_directions_, n_u_ + idx,
+                2 * n_friction_directions_, 1) = n_J_a + t_J_a;
+      }
+      if (auto iter = geoms_with_surface_velocity_.find(geom_b);
+          iter != geoms_with_surface_velocity_.end()) {
+        int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
+        // Get surface velocity in the frame of the geometry
+        Eigen::Vector3d sv =
+            plant_.GetSurfaceVelocity(context_, geom_b, inspector_,
+                                      drake::math::RigidTransformd::Identity(),
+                                      query_result.signed_distance_pair.p_BCb);
+        Eigen::VectorXd n_J_a = Ek * fb.row(0) * sv;
+        Eigen::VectorXd t_J_a =
+            fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
+        H.block(i * 2 * n_friction_directions_, n_u_ + idx,
+                2 * n_friction_directions_, 1) = -(n_J_a + t_J_a);
+      }
+    }
   }
 
   // Formulate c vector
@@ -639,6 +680,22 @@ void LCSFactory::ComputeSetOfGeometriesWithSurfaceVelocity() {
 std::set<drake::geometry::GeometryId> GetSetOfGeometriesWithSurfaceVelocity(
     const LCSFactory& lcsf) {
   return lcsf.geoms_with_surface_velocity_;
+}
+
+Eigen::Matrix<double, Eigen::Dynamic, 3> LCSFactory::GetForceBasis() const {
+  if (frictionless_ || n_friction_directions_ == 1) {
+    // TODO(@juan) implement computer planar forces using contact normal
+    return GeomGeomCollider<double>::ComputePlanarForceBasis(
+        Eigen::Vector3d(3, 1, 1).normalized(), planar_normal_);
+  }
+  return GeomGeomCollider<double>::ComputePolytopeForceBasis(
+      n_friction_directions_);
+}
+
+const drake::geometry::SceneGraphInspector<double>&
+LCSFactory::getSceneGraphInspector(const MultibodyPlant<double>& plant,
+                                   const Context<double>& context) {
+  return plant.EvalSceneGraphInspector(context);
 }
 
 }  // namespace multibody

@@ -186,13 +186,17 @@ class LCSFactory {
    * property.
    */
   static int GetNumContactVelocityBiases(
-    const drake::multibody::MultibodyPlant<double>& plant,
-    const drake::systems::Context<double>& context,
-    const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
-        contact_geoms);
+      const drake::multibody::MultibodyPlant<double>& plant,
+      const drake::systems::Context<double>& context,
+      const std::vector<drake::SortedPair<drake::geometry::GeometryId>>&
+          contact_geoms);
 
   friend std::set<drake::geometry::GeometryId>
   GetSetOfGeometriesWithSurfaceVelocity(const LCSFactory& lcsf);
+
+  static const drake::geometry::SceneGraphInspector<double>&
+  getSceneGraphInspector(const drake::multibody::MultibodyPlant<double>& plant,
+                         const drake::systems::Context<double>& context);
 
  private:
   /**
@@ -300,11 +304,13 @@ class LCSFactory {
   std::pair<std::vector<VectorXd>, std::vector<VectorXd>> FindWitnessPoints();
 
   /**
-   * @breif Fill in a set of geometries with surface velocity parameters. This
+   * @brief Fill in a set of geometries with surface velocity parameters. This
    * will later be used to define the order inputs that correspond to surface
    * velocity.
    */
   void ComputeSetOfGeometriesWithSurfaceVelocity();
+
+  Eigen::Matrix<double, Eigen::Dynamic, 3> GetForceBasis() const;
 
   // References to the MultibodyPlant and its contexts
   const drake::multibody::MultibodyPlant<double>& plant_;
@@ -329,9 +335,11 @@ class LCSFactory {
   bool frictionless_;           ///< Flag indicating frictionless contacts.
   double dt_;                   ///< Time step.
   int n_b_{0};                  ///< Number of contact velocity biases.
+  const drake::geometry::SceneGraphInspector<double>& inspector_;
   std::set<drake::geometry::GeometryId>
       geoms_with_surface_velocity_;  ///< Geometries with surface velocity
                                      ///< parameters
+  const Eigen::Vector3d planar_normal_{0, 1, 0};
 };
 
 }  // namespace multibody

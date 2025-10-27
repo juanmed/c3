@@ -138,7 +138,6 @@ class GeomGeomCollider {
       const Eigen::Vector3d& contact_normal,
       const Eigen::Vector3d& planar_normal);
 
- private:
   /**
    * @brief A struct to hold the results of a geometry query.
    *
@@ -180,6 +179,19 @@ class GeomGeomCollider {
   };
 
   /**
+   * @brief Gets the geometry query result.
+   *
+   * This function queries the MultibodyPlant for the signed distance and
+   * closest points between the two geometries.
+   *
+   * @param context The context for the MultibodyPlant.
+   * @return A GeometryQueryResult struct containing the results of the query.
+   */
+  GeometryQueryResult GetGeometryQueryResult(
+      const drake::systems::Context<T>& context) const;
+
+ private:
+  /**
    * @brief Internal helper function for EvalPolytope and EvalPlanar.
    *
    * This function performs the core computation of the signed distance and
@@ -204,18 +216,6 @@ class GeomGeomCollider {
       Eigen::Matrix<double, Eigen::Dynamic, 3> force_basis,
       drake::multibody::JacobianWrtVariable wrt,
       const drake::math::RotationMatrix<T>& R_WC);
-
-  /**
-   * @brief Gets the geometry query result.
-   *
-   * This function queries the MultibodyPlant for the signed distance and
-   * closest points between the two geometries.
-   *
-   * @param context The context for the MultibodyPlant.
-   * @return A GeometryQueryResult struct containing the results of the query.
-   */
-  GeometryQueryResult GetGeometryQueryResult(
-      const drake::systems::Context<T>& context) const;
 
   /**
    * @brief A reference to the MultibodyPlant containing the geometries.
