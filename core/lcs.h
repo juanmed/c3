@@ -128,6 +128,8 @@ class LCS {
    * @param n_x number of states
    * @param n_u number of action inputs
    * @param n_lambda number of force inputs
+   * @param N number of time steps in prediction horizon
+   * @param dt time step size
    * @return A generated LCS place holder
    */
   static LCS CreatePlaceholderLCS(int n_x, int n_u, int n_lambda, int N,
