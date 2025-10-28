@@ -56,14 +56,6 @@ GeomGeomCollider<T>::GetGeometryQueryResult(const Context<T>& context) const {
       inspector.GetPoseInFrame(geometry_id_B_).template cast<T>() *
       signed_distance_pair.p_BCb;
 
-  auto f = inspector.GetPoseInFrame(geometry_id_A_).template cast<T>();
-  std::cout << "pA: " << signed_distance_pair.p_ACa.transpose() << std::endl;
-  std::cout << "RA: " << f.rotation().ToQuaternion() << std::endl;
-  std::cout << "tA: " << f.translation().transpose() << std::endl;
-  f = inspector.GetPoseInFrame(geometry_id_B_).template cast<T>();
-  std::cout << "pB: " << signed_distance_pair.p_BCb.transpose() << std::endl;
-  std::cout << "RB: " << f.rotation().ToQuaternion() << std::endl;
-  std::cout << "tB: " << f.translation().transpose() << std::endl;
   return GeometryQueryResult{signed_distance_pair,
                              frame_A_id,
                              frame_B_id,

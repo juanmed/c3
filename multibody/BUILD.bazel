@@ -54,6 +54,7 @@ cc_test(
     ],
     deps = [
         ":lcs_factory",
+        ":surface_velocity_fixtures",
         "@gtest//:main",
     ],
 )
@@ -63,6 +64,9 @@ cc_library(
     hdrs = ["test/surface_velocity_fixtures.h"],
     deps = [
         ":lcs_factory"
+    ],
+    data = [
+      "//examples:example_data"
     ]
 )
 
