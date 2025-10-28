@@ -1,6 +1,7 @@
 // Includes for core controllers, simulators, and test problems.
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 
 #include <drake/geometry/drake_visualizer.h>
 #include <drake/geometry/meshcat_visualizer.h>
@@ -257,6 +258,12 @@ int RunCartpoleTest() {
   drake::systems::Simulator<double> simulator(*diagram,
                                               std::move(diagram_context));
 
+  const std::string path =
+      "/home/juanmedrano_eng/repos/c3/examples/lcs_factory_system_example.dot";
+  std::ofstream graphviz(path);
+  std::map<std::string, std::string> options_gv{{"plant/split", "I/O"}};
+  graphviz << diagram->GetGraphvizString({}, options_gv);
+
   simulator.set_target_realtime_rate(
       0.25);  // Run simulation at real-time speed.
   simulator.Initialize();
@@ -422,6 +429,12 @@ int RunPivotingTest() {
   auto& plant_context =
       diagram->GetMutableSubsystemContext(plant, diagram_context.get());
   plant.SetPositionsAndVelocities(&plant_context, x0);
+
+  const std::string path =
+      "/home/juanmedrano_eng/repos/c3/examples/lcs_factory_system_example.dot";
+  std::ofstream graphviz(path);
+  std::map<std::string, std::string> options_gv{{"plant/split", "I/O"}};
+  graphviz << diagram->GetGraphvizString({}, options_gv);
 
   // Create and configure the simulator.
   drake::systems::Simulator<double> simulator(*diagram,

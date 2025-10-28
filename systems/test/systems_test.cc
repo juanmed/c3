@@ -364,7 +364,7 @@ TEST_F(SurfaceVelocityTest, InputOutputPortSizesWithSurfaceVelocity) {
       GetSetOfGeometriesWithSurfaceVelocity(*lcs_factory_);
 
   EXPECT_EQ(geom_set.size(), 1);
-  EXPECT_TRUE(geom_set.contains(ground_geometry_id_));
+  EXPECT_TRUE(geom_set.contains(conveyor_belt_geometry_id_));
 }
 
 TEST_F(SurfaceVelocityTest, OutputLCSIsValidWithSurfaceVelocity) {
