@@ -7,6 +7,7 @@
 
 #include "drake/common/text_logging.h"
 #include "drake/math/autodiff_gradient.h"
+#include "drake/math/rotation_matrix.h"
 #include "drake/solvers/moby_lcp_solver.h"
 
 using std::set;
@@ -332,19 +333,38 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
     for (int i = 0; i < n_contacts_; i++) {
       multibody::GeomGeomCollider collider(plant_, contact_pairs_[i]);
       const auto& query_result = collider.GetGeometryQueryResult(context_);
+      drake::math::RotationMatrixd R_WC =
+          drake::math::RotationMatrixd::MakeFromOneVector(
+              query_result.signed_distance_pair.nhat_BA_W, 0);
+      R_WC = drake::math::RotationMatrixd::MakeYRotation(M_PI_2) *
+             drake::math::RotationMatrixd::MakeZRotation(M_PI_2);
+      std::cout << "R_WC : \n" << R_WC.matrix() << std::endl;
       const auto& [geom_a, geom_b] = contact_pairs_[i];
+      std::cout << "StewartTrinkle:\n";
       if (auto iter = geoms_with_surface_velocity_.find(geom_a);
           iter != geoms_with_surface_velocity_.end()) {
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
-        const Eigen::Vector3d sv =
-            plant_
-                .GetSurfaceVelocity(context_, geom_a, inspector_,
-                                    drake::math::RigidTransformd::Identity(),
-                                    query_result.signed_distance_pair.p_ACa)
-                .normalized();
-        double n_J_a = fb.row(0) * sv;
+        Eigen::Vector3d sv =
+            plant_.GetSurfaceVelocity(context_, geom_a, inspector_,
+                                      drake::math::RigidTransformd::Identity(),
+                                      query_result.signed_distance_pair.p_ACa);
+        std::cout << "  A sv : " << sv.transpose() << std::endl;
+        std::cout << "  A phi : " << query_result.signed_distance_pair.distance
+                  << std::endl;
+        const drake::geometry::Shape& shape = inspector_.GetShape(geom_a);
+        std::optional<Eigen::Vector3d> normal_at_p_GC =
+            drake::geometry::GetNormalAtPoint<double>(
+                shape, query_result.signed_distance_pair.p_ACa);
+        if (normal_at_p_GC.has_value()) {
+          std::cout << " A normal: " << normal_at_p_GC.value().transpose()
+                    << std::endl;
+        } else {
+          std::cout << " A *no normal* " << std::endl;
+        }
+        sv.normalize();
+        double n_J_a = fb.row(0) * R_WC.matrix() * sv;
         Eigen::VectorXd t_J_a =
-            fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
+            fb.block(1, 0, 2 * n_friction_directions_, 3) * R_WC.matrix() * sv;
         H(n_contacts_ + i, n_u_ + idx) = n_J_a;
         H.block(2 * n_contacts_ + i, n_u_ + idx, 2 * n_friction_directions_,
                 1) = t_J_a;
@@ -352,19 +372,38 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
       if (auto iter = geoms_with_surface_velocity_.find(geom_b);
           iter != geoms_with_surface_velocity_.end()) {
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
-        const Eigen::Vector3d sv =
-            plant_
-                .GetSurfaceVelocity(context_, geom_b, inspector_,
-                                    drake::math::RigidTransformd::Identity(),
-                                    query_result.signed_distance_pair.p_BCb)
-                .normalized();
-        double n_J_b = fb.row(0) * sv;
+        Eigen::Vector3d sv =
+            plant_.GetSurfaceVelocity(context_, geom_b, inspector_,
+                                      drake::math::RigidTransformd::Identity(),
+                                      query_result.signed_distance_pair.p_BCb);
+        std::cout << " B sv : " << sv.transpose() << std::endl;
+        std::cout << " B phi : " << query_result.signed_distance_pair.distance
+                  << std::endl;
+        const drake::geometry::Shape& shape = inspector_.GetShape(geom_b);
+        std::optional<Eigen::Vector3d> normal_at_p_GC =
+            drake::geometry::GetNormalAtPoint<double>(
+                shape, query_result.signed_distance_pair.p_BCb);
+        if (normal_at_p_GC.has_value()) {
+          std::cout << " B normal: " << normal_at_p_GC.value().transpose()
+                    << std::endl;
+        } else {
+          std::cout << " B *no normal* " << std::endl;
+        }
+
+        sv.normalize();
+        double n_J_b = fb.row(0) * R_WC.matrix() * sv;
         Eigen::VectorXd t_J_b =
-            fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
+            fb.block(1, 0, 2 * n_friction_directions_, 3) * R_WC.matrix() * sv;
         H(n_contacts_ + i, n_u_ + idx) = n_J_b;
         H.block(2 * n_contacts_ + i, n_u_ + idx, 2 * n_friction_directions_,
                 1) = t_J_b;
       }
+      std::cout << " p_ACa: "
+                << query_result.signed_distance_pair.p_ACa.transpose()
+                << std::endl;
+      std::cout << " p_BCb: "
+                << query_result.signed_distance_pair.p_BCb.transpose()
+                << std::endl;
     }
   }
 
@@ -434,20 +473,40 @@ void LCSFactory::FormulateAnitescuContactDynamics(
       multibody::GeomGeomCollider collider(plant_, contact_pairs_[i]);
       // Get geometry query result to access witness points
       const auto query_result = collider.GetGeometryQueryResult(context_);
+      drake::math::RotationMatrixd R_WC =
+          drake::math::RotationMatrixd::MakeFromOneVector(
+              query_result.signed_distance_pair.nhat_BA_W, 0);
+      R_WC = drake::math::RotationMatrixd::MakeYRotation(M_PI_2) *
+             drake::math::RotationMatrixd::MakeZRotation(M_PI_2);
+      std::cout << "R_WC : \n" << R_WC.matrix() << std::endl;
       const auto& [geom_a, geom_b] = contact_pairs_[i];
+      std::cout << "Anitescu:\n";
       if (auto iter = geoms_with_surface_velocity_.find(geom_a);
           iter != geoms_with_surface_velocity_.end()) {
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
         // Get surface velocity vector in the frame of the geometry
         Eigen::Vector3d sv =
-            plant_
-                .GetSurfaceVelocity(context_, geom_a, inspector_,
-                                    drake::math::RigidTransformd::Identity(),
-                                    query_result.signed_distance_pair.p_ACa)
-                .normalized();
-        Eigen::VectorXd n_J_a = Ek * fb.row(0) * sv;
+            plant_.GetSurfaceVelocity(context_, geom_a, inspector_,
+                                      drake::math::RigidTransformd::Identity(),
+                                      query_result.signed_distance_pair.p_ACa);
+        std::cout << " A sv : " << sv.transpose() << std::endl;
+        std::cout << " A phi : " << query_result.signed_distance_pair.distance
+                  << std::endl;
+        const drake::geometry::Shape& shape = inspector_.GetShape(geom_a);
+        std::optional<Eigen::Vector3d> normal_at_p_GC =
+            drake::geometry::GetNormalAtPoint<double>(
+                shape, query_result.signed_distance_pair.p_ACa);
+        if (normal_at_p_GC.has_value()) {
+          std::cout << " A normal: " << normal_at_p_GC.value().transpose()
+                    << std::endl;
+        } else {
+          std::cout << " A *no normal* " << std::endl;
+        }
+
+        sv.normalize();
+        Eigen::VectorXd n_J_a = Ek * fb.row(0) * R_WC.matrix() * sv;
         Eigen::VectorXd t_J_a =
-            fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
+            fb.block(1, 0, 2 * n_friction_directions_, 3) * R_WC.matrix() * sv;
         H.block(i * 2 * n_friction_directions_, n_u_ + idx,
                 2 * n_friction_directions_, 1) = n_J_a + t_J_a;
       }
@@ -456,17 +515,35 @@ void LCSFactory::FormulateAnitescuContactDynamics(
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
         // Get surface velocity in the frame of the geometry
         Eigen::Vector3d sv =
-            plant_
-                .GetSurfaceVelocity(context_, geom_b, inspector_,
-                                    drake::math::RigidTransformd::Identity(),
-                                    query_result.signed_distance_pair.p_BCb)
-                .normalized();
-        Eigen::VectorXd n_J_b = Ek * fb.row(0) * sv;
+            plant_.GetSurfaceVelocity(context_, geom_b, inspector_,
+                                      drake::math::RigidTransformd::Identity(),
+                                      query_result.signed_distance_pair.p_BCb);
+        std::cout << " B sv : " << sv.transpose() << std::endl;
+        std::cout << " B phi : " << query_result.signed_distance_pair.distance
+                  << std::endl;
+        const drake::geometry::Shape& shape = inspector_.GetShape(geom_b);
+        std::optional<Eigen::Vector3d> normal_at_p_GC =
+            drake::geometry::GetNormalAtPoint<double>(
+                shape, query_result.signed_distance_pair.p_BCb);
+        if (normal_at_p_GC.has_value()) {
+          std::cout << " B normal: " << normal_at_p_GC.value().transpose()
+                    << std::endl;
+        } else {
+          std::cout << " B *no normal* " << std::endl;
+        }
+        sv.normalize();
+        Eigen::VectorXd n_J_b = Ek * fb.row(0) * R_WC.matrix() * sv;
         Eigen::VectorXd t_J_b =
-            fb.block(1, 0, 2 * n_friction_directions_, 3) * sv;
+            fb.block(1, 0, 2 * n_friction_directions_, 3) * R_WC.matrix() * sv;
         H.block(i * 2 * n_friction_directions_, n_u_ + idx,
                 2 * n_friction_directions_, 1) = -(n_J_b + t_J_b);
       }
+      std::cout << " p_ACa: "
+                << query_result.signed_distance_pair.p_ACa.transpose()
+                << std::endl;
+      std::cout << " p_BCb: "
+                << query_result.signed_distance_pair.p_BCb.transpose()
+                << std::endl;
     }
   }
 
@@ -712,10 +789,14 @@ void LCSFactory::ComputeSetOfGeometriesWithSurfaceVelocity() {
         plant_.GetCurrentSurfaceSpeedAndNormal(context_, geom_a, inspector);
     if (surface_params.has_value()) {
       geoms_with_surface_velocity_.insert(geom_a);
+      std::cout << " Geom A: "
+                << std::get<1>(surface_params.value()).transpose() << std::endl;
     }
     surface_params =
         plant_.GetCurrentSurfaceSpeedAndNormal(context_, geom_b, inspector);
     if (surface_params.has_value()) {
+      std::cout << " Geom B: "
+                << std::get<1>(surface_params.value()).transpose() << std::endl;
       geoms_with_surface_velocity_.insert(geom_b);
     }
   }

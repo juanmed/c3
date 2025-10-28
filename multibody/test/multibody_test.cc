@@ -270,16 +270,27 @@ TEST_F(SurfaceVelocityTest, SurfaceVelocityStewartTrinkle) {
   LCS lcs = lcs_factory_->GenerateLCS();
   std::cout << "StewartTrinkle H: \n" << lcs.H().at(0) << std::endl;
   EXPECT_EQ(lcs.H().at(0).cols(), 2);
-  EXPECT_TRUE(true);
+  // std::cout << "StewartTrinkle LCS: \n" << lcs << std::endl;
+  const auto& [Jc, points] = lcs_factory_->GetContactJacobianAndPoints();
+  std::for_each(points.begin(), points.end(), [](const auto& e) {
+    std::cout << "  contact: " << e.transpose() << std::endl;
+  });
 }
 
 TEST_F(SurfaceVelocityTest, SurfaceVelocityAnitescu) {
   options_.contact_model = "anitescu";
-  lcs_factory_ = std::make_unique<LCSFactory>(*plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_, contact_geometries_, options_);
+  lcs_factory_ = std::make_unique<LCSFactory>(
+      *plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_,
+      contact_geometries_, options_);
   LCS lcs = lcs_factory_->GenerateLCS();
   std::cout << "Anitescu H: \n" << lcs.H().at(0) << std::endl;
-  EXPECT_EQ(lcs.H().at(0).cols(), 2);  
-  std::cout << "Anitescu LCS: \n" << lcs << std::endl;
+  EXPECT_EQ(lcs.H().at(0).cols(), 2);
+  // std::cout << "Anitescu LCS: \n" << lcs << std::endl;
+
+  const auto& [Jc, points] = lcs_factory_->GetContactJacobianAndPoints();
+  std::for_each(points.begin(), points.end(), [](const auto& e) {
+    std::cout << "  contact: " << e.transpose() << std::endl;
+  });
 }
 
 }  // namespace test
