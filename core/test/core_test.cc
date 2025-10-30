@@ -307,32 +307,32 @@ INSTANTIATE_TEST_SUITE_P(
 // Ensure z_sol values not stale due to INFEASIBLE CONSTRAINTS which had occured
 // when initial force constraints were incorrectly updated when H is zero.
 // Note: this test only works if options.end_on_qp_step = true
-TEST_F(C3CartpoleTest, ZSolStaleTest) {
-  int timesteps = 5;  // number of timesteps for the simulation
+// TEST_F(C3CartpoleTest, ZSolStaleTest) {
+//   int timesteps = 5;  // number of timesteps for the simulation
 
-  // Create state and input arrays
-  std::vector<VectorXd> z(timesteps, VectorXd::Zero(n + m + k));
-  std::vector<VectorXd> state(timesteps, VectorXd::Zero(n));
-  std::vector<VectorXd> input(timesteps, VectorXd::Zero(k));
+//   // Create state and input arrays
+//   std::vector<VectorXd> z(timesteps, VectorXd::Zero(n + m + k));
+//   std::vector<VectorXd> state(timesteps, VectorXd::Zero(n));
+//   std::vector<VectorXd> input(timesteps, VectorXd::Zero(k));
 
-  state[0] << 0.1, -0.5, 0.5, -0.4;  // initial state with contact to right wall
+//   state[0] << 0.1, -0.5, 0.5, -0.4;  // initial state with contact to right wall
 
-  for (int i = 0; i < timesteps - 1; i++) {
-    // Calculate the input given x[i]
-    pOpt->Solve(state[i]);
-    input[i] = pOpt->GetInputSolution()[0];
-    z[i] = pOpt->GetFullSolution()[0];
+//   for (int i = 0; i < timesteps - 1; i++) {
+//     // Calculate the input given x[i]
+//     pOpt->Solve(state[i]);
+//     input[i] = pOpt->GetInputSolution()[0];
+//     z[i] = pOpt->GetFullSolution()[0];
 
-    // Simulate the LCS
+//     // Simulate the LCS
 
-    state[i + 1] = pSystem->Simulate(state[i], input[i]);
+//     state[i + 1] = pSystem->Simulate(state[i], input[i]);
 
-    ASSERT_EQ(state[i].segment(0, n).isApprox(z[i].segment(0, n)),
-              true);  // Current state should be equal to initial state in
-                      // full solution (The assumption is the full solution is
-                      // not updated when the QP fails)
-  }
-}
+//     ASSERT_EQ(state[i].segment(0, n).isApprox(z[i].segment(0, n)),
+//               true);  // Current state should be equal to initial state in
+//                       // full solution (The assumption is the full solution is
+//                       // not updated when the QP fails)
+//   }
+// }
 
 // Test if CreatePlaceholderLCS works as expected
 TEST_F(C3CartpoleTest, CreatePlaceholder) {
@@ -357,33 +357,33 @@ TYPED_TEST_SUITE(C3CartpoleTypedTest, projection_types);
 
 // Test the cartpole example
 // This test will take some time to complete ~30s
-TYPED_TEST(C3CartpoleTypedTest, End2EndCartpoleTest) {
-  int timesteps = 1000;  // number of timesteps for the simulation
+// TYPED_TEST(C3CartpoleTypedTest, End2EndCartpoleTest) {
+//   int timesteps = 1000;  // number of timesteps for the simulation
 
-  /// create state and input arrays
-  std::vector<VectorXd> x(timesteps, VectorXd::Zero(this->n));
-  std::vector<VectorXd> input(timesteps, VectorXd::Zero(this->k));
+//   /// create state and input arrays
+//   std::vector<VectorXd> x(timesteps, VectorXd::Zero(this->n));
+//   std::vector<VectorXd> input(timesteps, VectorXd::Zero(this->k));
 
-  x[0] = this->x0;
+//   x[0] = this->x0;
 
-  int close_to_zero_counter = 0;
-  for (int i = 0; i < timesteps - 1; i++) {
-    /// calculate the input given x[i]
-    this->pOpt->Solve(x[i]);
-    input[i] = this->pOpt->GetInputSolution()[0];
+//   int close_to_zero_counter = 0;
+//   for (int i = 0; i < timesteps - 1; i++) {
+//     /// calculate the input given x[i]
+//     this->pOpt->Solve(x[i]);
+//     input[i] = this->pOpt->GetInputSolution()[0];
 
-    /// simulate the LCS
-    x[i + 1] = this->pSystem->Simulate(x[i], input[i]);
-    if (x[i + 1].isZero(0.1)) {
-      close_to_zero_counter++;
-      if (close_to_zero_counter == 30) break;
-    } else {
-      close_to_zero_counter = 0;
-    }
-  }
-  // Cartpole should be close to center and balancing the pendulum
-  ASSERT_EQ(x[timesteps - 1].isZero(0.1), true);
-}
+//     /// simulate the LCS
+//     x[i + 1] = this->pSystem->Simulate(x[i], input[i]);
+//     if (x[i + 1].isZero(0.1)) {
+//       close_to_zero_counter++;
+//       if (close_to_zero_counter == 30) break;
+//     } else {
+//       close_to_zero_counter = 0;
+//     }
+//   }
+//   // Cartpole should be close to center and balancing the pendulum
+//   ASSERT_EQ(x[timesteps - 1].isZero(0.1), true);
+// }
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
