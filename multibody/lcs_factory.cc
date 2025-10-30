@@ -329,16 +329,15 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
   H.block(2 * n_contacts_, 0, 2 * n_contacts_ * n_friction_directions_, n_u_) =
       dt_ * Jt * Jf_u;
   if (n_b_) {
-    const Eigen::Matrix<double, Eigen::Dynamic, 3> fb = GetForceBasis();
     // This project defines the contact frame C such that the contact normal is
     // along the +X axis. This is different from Drake's definition of the
     // surface normal at the contact point which is defined along the +Z axis.
     // R_C transforms a vector from drake's frame for the surface normal to the
     // contact frame used in this project.
-    static const drake::math::RotationMatrixd R_C{
-        drake::math::RotationMatrixd::Identity()};
+    static const Eigen::Matrix3d R_C = Eigen::Matrix3d::Identity();
     // drake::math::RotationMatrixd::MakeYRotation(M_PI_2) *
     // drake::math::RotationMatrixd::MakeZRotation(M_PI_2);
+    const Eigen::Matrix<double, Eigen::Dynamic, 3> fb = GetForceBasis();
 
     const auto& query_port =
         plant_.get_geometry_query_input_port()
@@ -349,15 +348,17 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
       const auto& query_result = collider.GetGeometryQueryResult(context_);
       const auto& [geom_a, geom_b] = contact_pairs_[i];
       // Contract frame as seen from world frame
-      const drake::math::RotationMatrixd R_WC =
+      const Eigen::Matrix3d R_WC =
           drake::math::RotationMatrixd::MakeFromOneVector(
-              query_result.signed_distance_pair.nhat_BA_W, 0);
+              query_result.signed_distance_pair.nhat_BA_W, 0)
+              .matrix()
+              .transpose();
 
       if (auto iter = geoms_with_surface_velocity_.find(geom_a);
           iter != geoms_with_surface_velocity_.end()) {
         // Pose of geometry in world frame
-        const drake::math::RigidTransformd& X_WG =
-            query_port.GetPoseInWorld(geom_a);
+        const Eigen::Matrix3d& X_WG =
+            query_port.GetPoseInWorld(geom_a).rotation().matrix();
 
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
         Eigen::Vector3d sv =
@@ -366,11 +367,9 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
                                     drake::math::RigidTransformd::Identity(),
                                     query_result.signed_distance_pair.p_ACa)
                 .normalized();
-        double n_J_a = fb.row(0) * R_WC.matrix().transpose() * R_C.matrix() *
-                       X_WG.rotation().matrix() * sv;
+        double n_J_a = fb.row(0) * R_WC * R_C * X_WG * sv;
         Eigen::VectorXd t_J_a = fb.block(1, 0, 2 * n_friction_directions_, 3) *
-                                R_WC.matrix().transpose() * R_C.matrix() *
-                                X_WG.rotation().matrix() * sv;
+                                R_WC * R_C * X_WG * sv;
         H(n_contacts_ + i, n_u_ + idx) = n_J_a;
         H.block(2 * n_contacts_ + i, n_u_ + idx, 2 * n_friction_directions_,
                 1) = t_J_a;
@@ -379,8 +378,8 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
           iter != geoms_with_surface_velocity_.end()) {
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
         // Pose of geometry in world frame
-        const drake::math::RigidTransformd& X_WG =
-            query_port.GetPoseInWorld(geom_b);
+        const Eigen::Matrix3d& X_WG =
+            query_port.GetPoseInWorld(geom_b).rotation().matrix();
 
         Eigen::Vector3d sv =
             plant_
@@ -388,11 +387,9 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
                                     drake::math::RigidTransformd::Identity(),
                                     query_result.signed_distance_pair.p_BCb)
                 .normalized();
-        double n_J_b = fb.row(0) * R_WC.matrix().transpose() * R_C.matrix() *
-                       X_WG.rotation().matrix() * sv;
+        double n_J_b = fb.row(0) * R_WC * R_C * X_WG * sv;
         Eigen::VectorXd t_J_b = fb.block(1, 0, 2 * n_friction_directions_, 3) *
-                                R_WC.matrix().transpose() * R_C.matrix() *
-                                X_WG.rotation().matrix() * sv;
+                                R_WC * R_C * X_WG * sv;
         H(n_contacts_ + i, n_u_ + idx) = -n_J_b;
         H.block(2 * n_contacts_ + i, n_u_ + idx, 2 * n_friction_directions_,
                 1) = -t_J_b;
@@ -462,8 +459,7 @@ void LCSFactory::FormulateAnitescuContactDynamics(
     // exists along the +Z axis at the point where the normal is queried. R_WC
     // transforms a vector using drake's frame to C3's frame.
     // TODO(@juan): Check if R_WC is necessary or not
-    static const drake::math::RotationMatrixd R_C{
-        drake::math::RotationMatrixd::Identity()};
+    static const Eigen::Matrix3d R_C = Eigen::Matrix3d::Identity();
     // drake::math::RotationMatrixd::MakeYRotation(M_PI_2) *
     // drake::math::RotationMatrixd::MakeZRotation(M_PI_2);
     const Eigen::Vector3d Ek =
@@ -482,9 +478,11 @@ void LCSFactory::FormulateAnitescuContactDynamics(
       multibody::GeomGeomCollider collider(plant_, contact_pairs_[i]);
       const auto query_result = collider.GetGeometryQueryResult(context_);
       // Contract frame as seen from world frame
-      const drake::math::RotationMatrixd R_WC =
+      const Eigen::Matrix3d R_WC =
           drake::math::RotationMatrixd::MakeFromOneVector(
-              query_result.signed_distance_pair.nhat_BA_W, 0);
+              query_result.signed_distance_pair.nhat_BA_W, 0)
+              .matrix()
+              .transpose();
 
       // Loop through contact geometries and add surface velocity jacobians.
       // All this happens in the contact frame.
@@ -496,8 +494,8 @@ void LCSFactory::FormulateAnitescuContactDynamics(
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
 
         // Pose of geometry in world frame
-        const drake::math::RigidTransformd& X_WG =
-            query_port.GetPoseInWorld(geom_a);
+        const Eigen::Matrix3d& X_WG =
+            query_port.GetPoseInWorld(geom_a).rotation().matrix();
 
         // Query surface velocity and normalize to obtain the surface velocity
         // vector only.
@@ -508,11 +506,9 @@ void LCSFactory::FormulateAnitescuContactDynamics(
                                     query_result.signed_distance_pair.p_ACa)
                 .normalized();
         // Build jacobians and add to control matrix H.
-        Eigen::VectorXd n_J_a = Ek * fb.row(0) * R_WC.matrix().transpose() *
-                                R_C.matrix() * X_WG.rotation() * sv;
+        Eigen::VectorXd n_J_a = Ek * fb.row(0) * R_WC * R_C * X_WG * sv;
         Eigen::VectorXd t_J_a = fb.block(1, 0, 2 * n_friction_directions_, 3) *
-                                R_WC.matrix().transpose() * R_C.matrix() *
-                                X_WG.rotation() * sv;
+                                R_WC * R_C * X_WG * sv;
         H.block(i * 2 * n_friction_directions_, n_u_ + idx,
                 2 * n_friction_directions_, 1) = n_J_a + t_J_a;
       }
@@ -521,19 +517,18 @@ void LCSFactory::FormulateAnitescuContactDynamics(
           iter != geoms_with_surface_velocity_.end()) {
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
         // Pose of geometry in world frame
-        const drake::math::RigidTransformd& X_WG =
-            query_port.GetPoseInWorld(geom_b);
+        // Pose of geometry in world frame
+        const Eigen::Matrix3d& X_WG =
+            query_port.GetPoseInWorld(geom_b).rotation().matrix();
         Eigen::Vector3d sv =
             plant_
                 .GetSurfaceVelocity(context_, geom_b, inspector_,
                                     drake::math::RigidTransformd::Identity(),
                                     query_result.signed_distance_pair.p_BCb)
                 .normalized();
-        Eigen::VectorXd n_J_b = Ek * fb.row(0) * R_WC.matrix().transpose() *
-                                R_C.matrix() * X_WG.rotation() * sv;
+        Eigen::VectorXd n_J_b = Ek * fb.row(0) * R_WC * R_C * X_WG * sv;
         Eigen::VectorXd t_J_b = fb.block(1, 0, 2 * n_friction_directions_, 3) *
-                                R_WC.matrix().transpose() * R_C.matrix() *
-                                X_WG.rotation() * sv;
+                                R_WC * R_C * X_WG * sv;
         H.block(i * 2 * n_friction_directions_, n_u_ + idx,
                 2 * n_friction_directions_, 1) = -(n_J_b + t_J_b);
       }
