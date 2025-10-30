@@ -268,13 +268,22 @@ INSTANTIATE_TEST_SUITE_P(ContactModelTests, LCSFactoryPivotingTest,
 
 TEST_F(SurfaceVelocityTest, SurfaceVelocityStewartTrinkle) {
   LCS lcs = lcs_factory_->GenerateLCS();
-  std::cout << "StewartTrinkle H: \n" << lcs.H().at(0) << std::endl;
-  EXPECT_EQ(lcs.H().at(0).cols(), 2);
-  // std::cout << "StewartTrinkle LCS: \n" << lcs << std::endl;
-  const auto& [Jc, points] = lcs_factory_->GetContactJacobianAndPoints();
-  std::for_each(points.begin(), points.end(), [](const auto& e) {
-    std::cout << "  contact: " << e.transpose() << std::endl;
-  });
+  const Eigen::MatrixXd& H = lcs.H().at(0);
+  EXPECT_EQ(H.cols(), 2);
+
+  // Verify elements in H have the expected values
+  constexpr double tol = 1e-10;
+  EXPECT_TRUE(std::abs(H(0, 1) - 0.0) < tol);
+  EXPECT_TRUE(std::abs(H(1, 1) - 0.0) <
+              tol);  // No normal component of surface velocity
+  EXPECT_TRUE(std::abs(H(2, 1) - 0.0) <
+              tol);  // No +Y component of surface velocity
+  EXPECT_TRUE(std::abs(H(3, 1) - 0.0) <
+              tol);  // No -Y component of surface velocity
+  EXPECT_TRUE(std::abs(H(4, 1) - 1.0) <
+              tol);  // +Z component of surface velocity
+  EXPECT_TRUE(std::abs(H(5, 1) + 1.0) <
+              tol);  // -Z component of surface velocity
 }
 
 TEST_F(SurfaceVelocityTest, SurfaceVelocityAnitescu) {
@@ -282,17 +291,27 @@ TEST_F(SurfaceVelocityTest, SurfaceVelocityAnitescu) {
   lcs_factory_ = std::make_unique<LCSFactory>(
       *plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_,
       contact_geometries_, options_);
+
+  // Create some state and input vectors to update the LCS
+  // Make sure to not zero all elements of state because some correspond
+  // to orientation, which an throw if an ill-formed element is passed
+  const auto q0 = plant_->GetPositions(*plant_context_);
+  const auto v0 = plant_->GetVelocities(*plant_context_);
+  drake::VectorX<double> state(q0.size() + v0.size());
+  state << q0, v0;
+  drake::VectorX<double> input = VectorXd::Zero(plant_->num_actuators());
+  lcs_factory_->UpdateStateAndInput(state, input);
   LCS lcs = lcs_factory_->GenerateLCS();
-  std::cout << "Anitescu H: \n" << lcs.H().at(0) << std::endl;
-  EXPECT_EQ(lcs.H().at(0).cols(), 2);
-  // std::cout << "Anitescu LCS: \n" << lcs << std::endl;
+  const Eigen::MatrixXd& H = lcs.H().at(0);
+  EXPECT_EQ(H.cols(), 2);
 
-  const auto& [Jc, points] = lcs_factory_->GetContactJacobianAndPoints();
-  std::for_each(points.begin(), points.end(), [](const auto& e) {
-    std::cout << "  contact: " << e.transpose() << std::endl;
-  });
+  // Verify elements in H have the expected values
+  constexpr double tol = 1e-10;
+  EXPECT_TRUE(std::abs(H(0, 1) - 0.0) < tol);
+  EXPECT_TRUE(std::abs(H(1, 1) - 0.0) < tol);
+  EXPECT_TRUE(std::abs(H(2, 1) - 1.0) < tol);
+  EXPECT_TRUE(std::abs(H(3, 1) + 1.0) < tol);
 }
-
 }  // namespace test
 }  // namespace multibody
 }  // namespace c3
