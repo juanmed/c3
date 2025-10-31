@@ -55,10 +55,15 @@ cc_binary(
 cc_binary(
     name = "surface_velocity_example",
     srcs = [
-      "surface_velocity_example.cc"
+      "surface_velocity_example.cc",
+      "common_systems.hpp" 
     ],
     deps = [
+      "//core:c3",
+      "//core:c3_cartpole_problem",
       "//multibody:lcs_factory",
+      "//systems:systems",
+      "//systems:system_utils",
       "@gflags",      
     ],
     data = [

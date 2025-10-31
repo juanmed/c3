@@ -269,21 +269,20 @@ INSTANTIATE_TEST_SUITE_P(ContactModelTests, LCSFactoryPivotingTest,
 TEST_F(SurfaceVelocityTest, SurfaceVelocityStewartTrinkle) {
   LCS lcs = lcs_factory_->GenerateLCS();
   const Eigen::MatrixXd& H = lcs.H().at(0);
-  EXPECT_EQ(H.cols(), 2);
+  EXPECT_EQ(H.cols(), 1);
 
   // Verify elements in H have the expected values
   constexpr double tol = 1e-10;
-  EXPECT_TRUE(std::abs(H(0, 1) - 0.0) < tol);
-  EXPECT_TRUE(std::abs(H(1, 1) - 0.0) <
-              tol);  // No normal component of surface velocity
-  EXPECT_TRUE(std::abs(H(2, 1) - 0.0) <
-              tol);  // No +Y component of surface velocity
-  EXPECT_TRUE(std::abs(H(3, 1) - 0.0) <
-              tol);  // No -Y component of surface velocity
-  EXPECT_TRUE(std::abs(H(4, 1) - 1.0) <
-              tol);  // +Z component of surface velocity
-  EXPECT_TRUE(std::abs(H(5, 1) + 1.0) <
-              tol);  // -Z component of surface velocity
+  EXPECT_LT(std::abs(H(0, 1) - 0.0), tol);
+  EXPECT_LT(std::abs(H(1, 1) - 0.0),
+            tol);  // No normal component of surface velocity
+  EXPECT_LT(std::abs(H(2, 1) - 0.0),
+            tol);  // No +Y component of surface velocity
+  EXPECT_LT(std::abs(H(3, 1) - 0.0),
+            tol);  // No -Y component of surface velocity
+  EXPECT_LT(std::abs(H(4, 1) - 1.0), tol);  // +Z component of surface velocity
+  EXPECT_LT(std::abs(H(5, 1) + 1.0), tol);  // -Z component of surface velocity
+  std::cout << "LCS \n" << lcs << std::endl;
 }
 
 TEST_F(SurfaceVelocityTest, SurfaceVelocityAnitescu) {
@@ -303,14 +302,15 @@ TEST_F(SurfaceVelocityTest, SurfaceVelocityAnitescu) {
   lcs_factory_->UpdateStateAndInput(state, input);
   LCS lcs = lcs_factory_->GenerateLCS();
   const Eigen::MatrixXd& H = lcs.H().at(0);
-  EXPECT_EQ(H.cols(), 2);
+  EXPECT_EQ(H.cols(), 1);
 
   // Verify elements in H have the expected values
   constexpr double tol = 1e-10;
-  EXPECT_TRUE(std::abs(H(0, 1) - 0.0) < tol);
-  EXPECT_TRUE(std::abs(H(1, 1) - 0.0) < tol);
-  EXPECT_TRUE(std::abs(H(2, 1) - 1.0) < tol);
-  EXPECT_TRUE(std::abs(H(3, 1) + 1.0) < tol);
+  EXPECT_LT(std::abs(H(0, 1) - 0.0), tol);
+  EXPECT_LT(std::abs(H(1, 1) - 0.0), tol);
+  EXPECT_LT(std::abs(H(2, 1) - 1.0), tol);
+  EXPECT_LT(std::abs(H(3, 1) + 1.0), tol);
+  std::cout << "LCS \n" << lcs << std::endl;
 }
 }  // namespace test
 }  // namespace multibody

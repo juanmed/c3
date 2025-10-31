@@ -382,8 +382,8 @@ TEST_F(SurfaceVelocityTest, OutputLCSIsValidWithSurfaceVelocity) {
   lcs_output = lcs_factory_system->AllocateOutput();
 
   // Should not throw and should produce an LCS object with correct dimensions
-  // EXPECT_NO_THROW(
-  //     { lcs_factory_system->CalcOutput(*lcs_context, lcs_output.get()); });
+  EXPECT_NO_THROW(
+      { lcs_factory_system->CalcOutput(*lcs_context, lcs_output.get()); });
   const auto& lcs = lcs_output->get_data(0)->get_value<c3::LCS>();
   EXPECT_EQ(lcs.num_states(),
             plant_->num_positions() + plant_->num_velocities());
