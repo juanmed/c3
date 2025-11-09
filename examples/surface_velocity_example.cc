@@ -34,7 +34,7 @@ int surface_velocity_example() {
   drake::multibody::MultibodyPlantConfig config;
   config.time_step = 0.0;
   config.penetration_allowance = 0.001;
-  config.contact_model = "hydroelastic"; // "hydroelastic" or "point" or "hydroelastic_with_fallback"
+  config.contact_model = "point"; // "hydroelastic" or "point" or "hydroelastic_with_fallback"
   config.contact_surface_representation = "polygon"; // "polygon" or "triangle"
  
   drake::geometry::SceneGraphConfig scene_graph_config;
@@ -88,7 +88,7 @@ int surface_velocity_example() {
   // Add the LCS factory system.
   drake::systems::DiagramBuilder<double> plant_for_sim_builder;
   C3ControllerOptions options = drake::yaml::LoadYamlFile<C3ControllerOptions>(
-      "examples/resources/conveyor_belt/conveyor_belt_c3_options.yaml");
+      "examples/resources/conveyor_belt/conveyor_belt_c3_options_anitescu.yaml");
   auto lcs_factory_system = plant_for_sim_builder.AddSystem<LCSFactorySystem>(
       plant_for_lcs, plant_for_lcs_context, *plant_autodiff,
       *plant_context_autodiff, contact_pairs, options.lcs_factory_options);

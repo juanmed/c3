@@ -78,7 +78,7 @@
           <drake:mu_static>1.0</drake:mu_static>
           <drake:hunt_crossley_dissipation>5</drake:hunt_crossley_dissipation>
           <drake:point_contact_stiffness>1e4</drake:point_contact_stiffness>
-          <drake:surface_speed>0.1</drake:surface_speed>
+          <drake:surface_speed>0.5</drake:surface_speed>
           <drake:surface_velocity_normal>0 1 0</drake:surface_velocity_normal>
         </drake:proximity_properties>
       </collision>
@@ -121,7 +121,7 @@
     </link> -->
 
     <link name="sphere">
-      <pose> -0, -0, 1.27, 0, 0.0, 0.0</pose>
+      <pose> 2, -0, 1.27, 0, 0.0, 0.0</pose>
       <visual name="sphere_visual">
         <geometry>
           <sphere>
