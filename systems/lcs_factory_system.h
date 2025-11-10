@@ -92,6 +92,22 @@ class LCSFactorySystem : public drake::systems::LeafSystem<double> {
     return this->get_output_port(lcs_contact_jacobian_port_);
   }
 
+  /**
+   * @brief Get the number of geometries with contact velocity bias terms
+   *
+   * @return Number of contact velocity bias terms
+   */
+  friend int GetNumContactVelocityBiases(const LCSFactorySystem& lcsfs);
+
+
+  /**
+   * @brief Get a set of geometry Ids that have contact velocity bias term
+   *
+   * @return Set of geometry Ids with velocity bias terms
+   */
+  friend std::set<drake::geometry::GeometryId>
+  GetSetOfGeometriesWithSurfaceVelocity(const LCSFactorySystem& lcsfs);
+
  private:
   /**
    * @brief Computes the LCS based on the current state and inputs.

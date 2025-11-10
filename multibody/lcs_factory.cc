@@ -117,14 +117,17 @@ void LCSFactory::UpdateStateAndInput(
     SetContext<double>(plant_, state, input, &context_);
   }
   drake::VectorX<double> q_v_u(n_x_ + n_u_);
-  q_v_u << state, input;
+  q_v_u << state, input.head(n_u_);
   drake::AutoDiffVecXd q_v_u_ad = drake::math::InitializeAutoDiff(q_v_u);
   SetPositionsAndVelocitiesIfNew<AutoDiffXd>(plant_ad_, q_v_u_ad.head(n_x_),
                                              &context_ad_);
   SetInputsIfNew<AutoDiffXd>(plant_ad_, q_v_u_ad(Eigen::seqN(n_x_, n_u_)),
                              &context_ad_);
   if (n_b_) {
-    SetSurfaceVelocitiesIfNew<AutoDiffXd>(plant_ad_, q_v_u_ad.tail(n_b_),
+    drake::VectorX<double> u_b(n_b_);
+    u_b << input.tail(n_b_);
+    drake::AutoDiffVecXd u_b_ad = drake::math::InitializeAutoDiff(u_b);
+    SetSurfaceVelocitiesIfNew<AutoDiffXd>(plant_ad_, u_b_ad,
                                           geoms_with_surface_velocity_,
                                           &context_ad_);
   }
@@ -371,7 +374,7 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
         Eigen::VectorXd t_J_a = fb.block(1, 0, 2 * n_friction_directions_, 3) *
                                 R_WC * R_C * X_WG * sv;
         H(n_contacts_ + i, n_u_ + idx) = n_J_a;
-        H.block(2 * n_contacts_ + i, n_u_ + idx, 2 * n_friction_directions_,
+        H.block(2 * n_contacts_ + i * 2 * n_friction_directions_, n_u_ + idx, 2 * n_friction_directions_,
                 1) = t_J_a;
       }
       if (auto iter = geoms_with_surface_velocity_.find(geom_b);
@@ -391,7 +394,7 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
         Eigen::VectorXd t_J_b = fb.block(1, 0, 2 * n_friction_directions_, 3) *
                                 R_WC * R_C * X_WG * sv;
         H(n_contacts_ + i, n_u_ + idx) = -n_J_b;
-        H.block(2 * n_contacts_ + i, n_u_ + idx, 2 * n_friction_directions_,
+        H.block(2 * n_contacts_ + i * 2 * n_friction_directions_, n_u_ + idx, 2 * n_friction_directions_,
                 1) = -t_J_b;
       }
     }

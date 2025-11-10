@@ -54,6 +54,16 @@ class SurfaceVelocityTest : public ::testing::Test {
 
     drake::multibody::Parser parser(plant_, scene_graph_);
     parser.AddModels("examples/resources/conveyor_belt/conveyor_belt.sdf");
+
+    // Add an input port for surface velocity
+    const drake::multibody::RigidBody<double>& conveyor_belt_body =
+        plant_->GetBodyByName("conveyor_belt");
+    const drake::geometry::GeometryId geom_id =
+        plant_->GetCollisionGeometriesForBody(conveyor_belt_body).at(0);
+    plant_->DeclareSurfaceVelocityInputPort(
+        geom_id, Eigen::Vector3d(0.0, 1.0, 0.0), 0.0);
+
+    plant_->set_name("plant_");
     plant_->Finalize();
 
     diagram_ = builder_.Build();
@@ -93,11 +103,6 @@ class SurfaceVelocityTest : public ::testing::Test {
     drake::VectorX<double> state(q0.size() + v0.size());
     state << q0, v0;
     drake::VectorX<double> input = VectorXd::Zero(plant_->num_actuators());
-
-    lcs_factory_ = std::make_unique<LCSFactory>(
-        *plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_,
-        contact_geometries_, options_);
-    lcs_factory_->UpdateStateAndInput(state, input);
   }
 
   DiagramBuilder<double> builder_;
@@ -111,7 +116,6 @@ class SurfaceVelocityTest : public ::testing::Test {
   LCSFactoryOptions options_;
   std::vector<drake::SortedPair<drake::geometry::GeometryId>>
       contact_geometries_;
-  std::unique_ptr<LCSFactory> lcs_factory_;
   drake::geometry::GeometryId conveyor_belt_geometry_id_;
   drake::geometry::GeometryId sphere_geometry_id_;
 };

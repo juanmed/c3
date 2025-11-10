@@ -348,20 +348,18 @@ TEST_F(SurfaceVelocityTest, InputOutputPortSizesWithSurfaceVelocity) {
       *plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_,
       contact_geometries_, options_);
 
-  int n_b = lcs_factory_->GetNumContactVelocityBiases(*plant_, *plant_context_,
-                                                      contact_geometries_);
-
   // Check input port sizes and output port existence
   EXPECT_EQ(lcs_factory_system->get_input_port_lcs_state().size(),
             plant_->num_positions() + plant_->num_velocities() +
                 1);  // +1 for timestamp
   EXPECT_EQ(lcs_factory_system->get_input_port_lcs_input().size(),
-            plant_->num_actuators() + n_b);
+            plant_->num_actuators() +
+                GetNumContactVelocityBiases(*lcs_factory_system));
   EXPECT_NO_THROW(lcs_factory_system->get_output_port_lcs());
   EXPECT_NO_THROW(lcs_factory_system->get_output_port_lcs_contact_jacobian());
 
   std::set<drake::geometry::GeometryId> geom_set =
-      GetSetOfGeometriesWithSurfaceVelocity(*lcs_factory_);
+      GetSetOfGeometriesWithSurfaceVelocity(*lcs_factory_system);
 
   EXPECT_EQ(geom_set.size(), 1);
   EXPECT_TRUE(geom_set.contains(conveyor_belt_geometry_id_));
@@ -376,10 +374,25 @@ TEST_F(SurfaceVelocityTest, OutputLCSIsValidWithSurfaceVelocity) {
   lcs_factory_system = std::make_unique<c3::systems::LCSFactorySystem>(
       *plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_,
       contact_geometries_, options_);
-  int n_b = lcs_factory_->GetNumContactVelocityBiases(*plant_, *plant_context_,
-                                                      contact_geometries_);
+
   lcs_context = lcs_factory_system->CreateDefaultContext();
   lcs_output = lcs_factory_system->AllocateOutput();
+
+  // Set up dummy state and input
+  auto state_vec = c3::systems::TimestampedVector<double>(
+      plant_->num_positions() + plant_->num_velocities());
+  const auto q0 = plant_->GetPositions(*plant_context_);
+  const auto v0 = plant_->GetVelocities(*plant_context_);
+
+  Eigen::VectorXd x(q0.size() + v0.size());
+  x << q0, v0;
+  state_vec.SetDataVector(x);
+  state_vec.set_timestamp(0.0);
+  lcs_factory_system->get_input_port_lcs_state().FixValue(lcs_context.get(),
+                                                          state_vec);
+
+  Eigen::VectorXd u = Eigen::VectorXd::Zero(plant_->num_actuators() + 1);
+  lcs_factory_system->get_input_port_lcs_input().FixValue(lcs_context.get(), u);
 
   // Should not throw and should produce an LCS object with correct dimensions
   EXPECT_NO_THROW(
@@ -387,7 +400,9 @@ TEST_F(SurfaceVelocityTest, OutputLCSIsValidWithSurfaceVelocity) {
   const auto& lcs = lcs_output->get_data(0)->get_value<c3::LCS>();
   EXPECT_EQ(lcs.num_states(),
             plant_->num_positions() + plant_->num_velocities());
-  EXPECT_EQ(lcs.num_inputs(), plant_->num_actuators() + n_b);
+  EXPECT_EQ(lcs.num_inputs(),
+            plant_->num_actuators() +
+                GetNumContactVelocityBiases(*lcs_factory_system));
   EXPECT_EQ(lcs.num_lambdas(), LCSFactory::GetNumContactVariables(options_));
   EXPECT_EQ(lcs.dt(), options_.dt);
   EXPECT_EQ(lcs.N(), options_.N);

@@ -91,5 +91,14 @@ void LCSFactorySystem::OutputLCSContactJacobian(
   *output = lcs_factory_->GetContactJacobianAndPoints();
 }
 
+int GetNumContactVelocityBiases(const LCSFactorySystem& lcsfs) {
+  return lcsfs.n_b_;
+}
+
+std::set<drake::geometry::GeometryId> GetSetOfGeometriesWithSurfaceVelocity(
+    const LCSFactorySystem& lcsfs) {
+  return GetSetOfGeometriesWithSurfaceVelocity(*lcsfs.lcs_factory_);
+}
+
 }  // namespace systems
 }  // namespace c3

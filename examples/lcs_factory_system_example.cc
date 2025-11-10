@@ -178,6 +178,18 @@ int RunCartpoleTest() {
       plant_for_lcs, plant_for_lcs_context, *plant_autodiff,
       *plant_context_autodiff, contact_pairs, options.lcs_factory_options);
 
+  // std::shared_ptr<LCSFactory> lcs_factory = std::make_shared<LCSFactory>(
+  //     plant_for_lcs, plant_for_lcs_context, *plant_autodiff,
+  //     *plant_context_autodiff, contact_pairs, options.lcs_factory_options);
+  // const auto q0 = plant_for_lcs.GetPositions(plant_for_lcs_context);
+  // const auto v0 = plant_for_lcs.GetVelocities(plant_for_lcs_context);
+  // drake::VectorX<double> state(q0.size() + v0.size());
+  // state << q0, v0;
+  // drake::VectorX<double> input = VectorXd::Zero(plant_for_lcs.num_actuators());
+  // lcs_factory->UpdateStateAndInput(state, input);
+  // LCS lcs = lcs_factory->GenerateLCS();
+  // std::cout << "LCS: \n" << lcs << std::endl;
+
   // Add the C3 controller.
   auto c3_controller = builder.AddSystem<C3Controller>(
       plant_for_lcs, c3_cartpole_problem.cost, options);
@@ -282,6 +294,7 @@ int RunPivotingTest() {
   const std::string file_for_lcs =
       "examples/resources/cube_pivoting/cube_pivoting.sdf";
   parser_for_lcs.AddModels(file_for_lcs);
+  plant_for_lcs.set_name("plant_for_lcs");
   plant_for_lcs.Finalize();
 
   // Build the plant diagram.
@@ -324,6 +337,7 @@ int RunPivotingTest() {
   Parser parser(&plant, &scene_graph);
   const std::string file = "examples/resources/cube_pivoting/cube_pivoting.sdf";
   parser.AddModels(file);
+  plant.set_name("plant_for_sim");
   plant.Finalize();
 
   // Load controller options and cost matrices.
@@ -346,6 +360,19 @@ int RunPivotingTest() {
   auto lcs_factory_system = builder.AddSystem<LCSFactorySystem>(
       plant_for_lcs, plant_for_lcs_context, *plant_autodiff,
       *plant_context_autodiff, contact_pairs, options.lcs_factory_options);
+
+  // std::shared_ptr<LCSFactory> lcs_factory = std::make_shared<LCSFactory>(
+  //     plant_for_lcs, plant_for_lcs_context, *plant_autodiff,
+  //     *plant_context_autodiff, contact_pairs, options.lcs_factory_options);
+  // const auto q0 = plant_for_lcs.GetPositions(plant_for_lcs_context);
+  // const auto v0 = plant_for_lcs.GetVelocities(plant_for_lcs_context);
+  // drake::VectorX<double> state(q0.size() + v0.size());
+  // state << q0, v0;
+  // drake::VectorX<double> input = VectorXd::Zero(plant_for_lcs.num_actuators());
+  // lcs_factory->UpdateStateAndInput(state, input);
+  // LCS lcs = lcs_factory->GenerateLCS();
+  // std::cout << "LCS: \n" << lcs << std::endl;
+
 
   // Add the C3 controller.
   auto c3_controller =
