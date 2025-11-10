@@ -94,15 +94,6 @@ class SurfaceVelocityTest : public ::testing::Test {
     options_.mu = {0.5};
     options_.N = 1;
     options_.dt = 0.01;
-
-    // Create some state and input vectors to update the LCS
-    // Make sure to not zero all elements of state because some correspond
-    // to orientation, which an throw if an ill-formed element is passed
-    const auto q0 = plant_->GetPositions(*plant_context_);
-    const auto v0 = plant_->GetVelocities(*plant_context_);
-    drake::VectorX<double> state(q0.size() + v0.size());
-    state << q0, v0;
-    drake::VectorX<double> input = VectorXd::Zero(plant_->num_actuators());
   }
 
   DiagramBuilder<double> builder_;

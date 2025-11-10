@@ -64,7 +64,8 @@ cc_binary(
       "//multibody:lcs_factory",
       "//systems:systems",
       "//systems:system_utils",
-      "@gflags",      
+      "@gflags",
+      "@drake//:drake_shared_library",      
     ],
     data = [
       ":example_data"
