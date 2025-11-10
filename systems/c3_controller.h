@@ -40,7 +40,8 @@ class C3Controller : public drake::systems::LeafSystem<double> {
    */
   explicit C3Controller(const drake::multibody::MultibodyPlant<double>& plant,
                         const C3::CostMatrices& costs,
-                        C3ControllerOptions controller_options);
+                        C3ControllerOptions controller_options,
+                        int n_b = 0);
 
   // Accessors for input ports.
   const drake::systems::InputPort<double>& get_input_port_target() const {
@@ -200,6 +201,7 @@ class C3Controller : public drake::systems::LeafSystem<double> {
   int n_lambda_;  ///< Number of Lagrange multipliers.
   int n_u_;       ///< Number of control inputs.
   double dt_;     ///< Time step.
+  int n_b_; ////< Number of contact velocity bias variables
 
   // C3 solver instance.
   mutable std::unique_ptr<C3> c3_;

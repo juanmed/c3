@@ -97,7 +97,7 @@ class LCSFactorySystem : public drake::systems::LeafSystem<double> {
    *
    * @return Number of contact velocity bias terms
    */
-  friend int GetNumContactVelocityBiases(const LCSFactorySystem& lcsfs);
+  int GetNumContactVelocityBiases() const;
 
 
   /**

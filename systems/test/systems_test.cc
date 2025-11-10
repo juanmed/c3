@@ -354,7 +354,7 @@ TEST_F(SurfaceVelocityTest, InputOutputPortSizesWithSurfaceVelocity) {
                 1);  // +1 for timestamp
   EXPECT_EQ(lcs_factory_system->get_input_port_lcs_input().size(),
             plant_->num_actuators() +
-                GetNumContactVelocityBiases(*lcs_factory_system));
+                lcs_factory_system->GetNumContactVelocityBiases());
   EXPECT_NO_THROW(lcs_factory_system->get_output_port_lcs());
   EXPECT_NO_THROW(lcs_factory_system->get_output_port_lcs_contact_jacobian());
 
@@ -402,7 +402,7 @@ TEST_F(SurfaceVelocityTest, OutputLCSIsValidWithSurfaceVelocity) {
             plant_->num_positions() + plant_->num_velocities());
   EXPECT_EQ(lcs.num_inputs(),
             plant_->num_actuators() +
-                GetNumContactVelocityBiases(*lcs_factory_system));
+                lcs_factory_system->GetNumContactVelocityBiases());
   EXPECT_EQ(lcs.num_lambdas(), LCSFactory::GetNumContactVariables(options_));
   EXPECT_EQ(lcs.dt(), options_.dt);
   EXPECT_EQ(lcs.N(), options_.N);

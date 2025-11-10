@@ -27,17 +27,19 @@ namespace systems {
 
 C3Controller::C3Controller(
     const drake::multibody::MultibodyPlant<double>& plant,
-    const C3::CostMatrices& costs, C3ControllerOptions controller_options)
+    const C3::CostMatrices& costs, C3ControllerOptions controller_options,
+    int n_b)
     : plant_(plant),
       controller_options_(controller_options),
       publish_frequency_(controller_options.publish_frequency),
-      N_(controller_options_.lcs_factory_options.N) {
+      N_(controller_options_.lcs_factory_options.N),
+      n_b_(n_b) {
   this->set_name("c3_controller");
 
   // Initialize dimensions
   n_q_ = plant_.num_positions();
   n_v_ = plant_.num_velocities();
-  n_u_ = plant_.num_actuators();
+  n_u_ = plant_.num_actuators() + n_b_;
   n_x_ = n_q_ + n_v_;
   dt_ = controller_options_.lcs_factory_options.dt;
   solve_time_filter_constant_ = controller_options_.solve_time_filter_alpha;
