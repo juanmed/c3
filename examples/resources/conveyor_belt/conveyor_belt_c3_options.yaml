@@ -34,15 +34,15 @@ c3_options:
   w_R: 1 #Penalty on all decision variables, assuming scalar
   w_G: 0.02 #Penalty on all decision variables, assuming scalar
   w_U: 1 #State Tracking Error, assuming diagonal
-  q_vector: [ 500, 500, 500, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ] #Penalty on efforts, assuming diagonal
+  q_vector: [ 500, 500, 500, 1, 1, 1 ] #Penalty on efforts, assuming diagonal
   r_vector: [ 1 ] #Single surface-velocity input
-  g_x: [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+  g_x: [ 1, 1, 1, 1, 1, 1 ]
   g_gamma: [ 1 ]
   g_lambda_n: [ 1 ]
   g_lambda_t: [ 1, 1, 1, 1 ]
   g_lambda: []
   g_u: [ 1 ] #Weight for the surface-velocity input in the projection
-  u_x: [ 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000 ]
+  u_x: [ 1000, 1000, 1000, 1000, 1000, 1000 ]
   u_gamma: [ 1 ]
   u_lambda_n: [ 1 ]
   u_lambda_t: [ 1, 1, 1, 1 ]

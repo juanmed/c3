@@ -12,6 +12,7 @@
 #include "systems/lcs_factory_system.h"
 #include "systems/lcs_simulator.h"
 
+#include "drake/common/proto/call_python.h"
 #include "drake/geometry/meshcat.h"
 #include "drake/geometry/meshcat_visualizer.h"
 #include "drake/geometry/scene_graph.h"
@@ -23,12 +24,16 @@
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/primitives/sine.h"
+#include "drake/systems/primitives/vector_log_sink.h"
 
 using c3::C3;
 using c3::systems::C3Controller;
 using c3::systems::C3ControllerOptions;
+
 using c3::systems::LCSFactorySystem;
 using c3::systems::LCSSimulator;
+using drake::common::CallPython;
+using drake::common::ToPythonTuple;
 
 int surface_velocity_example() {
   drake::multibody::MultibodyPlantConfig config;
@@ -132,14 +137,14 @@ int surface_velocity_example() {
   //                                    ConstraintVariable::STATE);
 
   // Add a constant vector source for the desired state.
-  Eigen::VectorXd xd(13);
-  xd << 0, 0, 1.25, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0;
+  Eigen::VectorXd xd(6);
+  xd << 0, 0, 1.25, 0, 0, 0;
   auto xdes = plant_for_sim_builder
                   .AddSystem<drake::systems::ConstantVectorSource<double>>(xd);
 
   // Add a vector-to-timestamped-vector converter.
   auto vector_to_timestamped_vector =
-      plant_for_sim_builder.AddSystem<Vector2TimestampedVector>(13);
+      plant_for_sim_builder.AddSystem<Vector2TimestampedVector>(6);
 
   // sim plant -> timestamped vector -> c3 controller
   plant_for_sim_builder.Connect(
@@ -163,6 +168,10 @@ int surface_velocity_example() {
   plant_for_sim_builder.Connect(
       c3_input->get_output_port_c3_input(),
       plant_for_sim.get_surface_speed_input_port(sim_geom_id).value().get());
+
+  auto x_logger = drake::systems::LogVectorOutput(
+      c3_input->get_output_port_c3_input(), &plant_for_sim_builder);
+  x_logger->set_name("x_logger");
 
   // Add a ZeroOrderHold system for state updates.
   auto input_zero_order_hold =
@@ -223,6 +232,12 @@ int surface_velocity_example() {
   simulator.AdvanceTo(20.0);
   visualizer.PublishRecording();
 
+  // Plot data
+  const auto& x_log = x_logger->FindLog(simulator.get_context());
+  CallPython("figure", 1);
+  CallPython("clf");
+  CallPython("plot", x_log.sample_times(), x_log.data().transpose());
+  CallPython("title", "Control input");
   return 0;
 }
 
