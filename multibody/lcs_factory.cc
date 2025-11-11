@@ -127,9 +127,8 @@ void LCSFactory::UpdateStateAndInput(
     drake::VectorX<double> u_b(n_b_);
     u_b << input.tail(n_b_);
     drake::AutoDiffVecXd u_b_ad = drake::math::InitializeAutoDiff(u_b);
-    SetSurfaceVelocitiesIfNew<AutoDiffXd>(plant_ad_, u_b_ad,
-                                          geoms_with_surface_velocity_,
-                                          &context_ad_);
+    SetSurfaceVelocitiesIfNew<AutoDiffXd>(
+        plant_ad_, u_b_ad, geoms_with_surface_velocity_, &context_ad_);
   }
 }
 // Linearizes the dynamics of a multibody plant_ into a Linear Complementarity
@@ -366,7 +365,7 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
         Eigen::Vector3d sv =
             plant_
-                .GetSurfaceVelocity(context_, geom_a, inspector_,
+                .GetSurfaceVelocityDirection(context_, geom_a, inspector_,
                                     drake::math::RigidTransformd::Identity(),
                                     query_result.signed_distance_pair.p_ACa)
                 .normalized();
@@ -374,8 +373,8 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
         Eigen::VectorXd t_J_a = fb.block(1, 0, 2 * n_friction_directions_, 3) *
                                 R_WC * R_C * X_WG * sv;
         H(n_contacts_ + i, n_u_ + idx) = n_J_a;
-        H.block(2 * n_contacts_ + i * 2 * n_friction_directions_, n_u_ + idx, 2 * n_friction_directions_,
-                1) = t_J_a;
+        H.block(2 * n_contacts_ + i * 2 * n_friction_directions_, n_u_ + idx,
+                2 * n_friction_directions_, 1) = t_J_a;
       }
       if (auto iter = geoms_with_surface_velocity_.find(geom_b);
           iter != geoms_with_surface_velocity_.end()) {
@@ -386,7 +385,7 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
 
         Eigen::Vector3d sv =
             plant_
-                .GetSurfaceVelocity(context_, geom_b, inspector_,
+                .GetSurfaceVelocityDirection(context_, geom_b, inspector_,
                                     drake::math::RigidTransformd::Identity(),
                                     query_result.signed_distance_pair.p_BCb)
                 .normalized();
@@ -394,8 +393,8 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
         Eigen::VectorXd t_J_b = fb.block(1, 0, 2 * n_friction_directions_, 3) *
                                 R_WC * R_C * X_WG * sv;
         H(n_contacts_ + i, n_u_ + idx) = -n_J_b;
-        H.block(2 * n_contacts_ + i * 2 * n_friction_directions_, n_u_ + idx, 2 * n_friction_directions_,
-                1) = -t_J_b;
+        H.block(2 * n_contacts_ + i * 2 * n_friction_directions_, n_u_ + idx,
+                2 * n_friction_directions_, 1) = -t_J_b;
       }
     }
   }
@@ -465,8 +464,8 @@ void LCSFactory::FormulateAnitescuContactDynamics(
     static const Eigen::Matrix3d R_C = Eigen::Matrix3d::Identity();
     // drake::math::RotationMatrixd::MakeYRotation(M_PI_2) *
     // drake::math::RotationMatrixd::MakeZRotation(M_PI_2);
-    const Eigen::Vector3d Ek =
-        Eigen::Vector3d::Ones(2 * n_friction_directions_);
+    const Eigen::VectorXd Ek =
+        Eigen::VectorXd::Ones(2 * n_friction_directions_);
     const Eigen::Matrix<double, Eigen::Dynamic, 3> fb = GetForceBasis();
 
     const auto& query_port =
@@ -504,7 +503,7 @@ void LCSFactory::FormulateAnitescuContactDynamics(
         // vector only.
         Eigen::Vector3d sv =
             plant_
-                .GetSurfaceVelocity(context_, geom_a, inspector_,
+                .GetSurfaceVelocityDirection(context_, geom_a, inspector_,
                                     drake::math::RigidTransformd::Identity(),
                                     query_result.signed_distance_pair.p_ACa)
                 .normalized();
@@ -525,7 +524,7 @@ void LCSFactory::FormulateAnitescuContactDynamics(
             query_port.GetPoseInWorld(geom_b).rotation().matrix();
         Eigen::Vector3d sv =
             plant_
-                .GetSurfaceVelocity(context_, geom_b, inspector_,
+                .GetSurfaceVelocityDirection(context_, geom_b, inspector_,
                                     drake::math::RigidTransformd::Identity(),
                                     query_result.signed_distance_pair.p_BCb)
                 .normalized();

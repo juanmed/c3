@@ -46,7 +46,7 @@ bazel_dep(name = "drake")
 
 # You can also use DRAKE_COMMIT to choose a Drake release; e.g.:
 DRAKE_COMMIT = "v1.42.0"
-DRAKE_CHECKSUM = "298900ecbd7d12b9af91a957041ce3b9f1fabee41d9b437c941358a0ed5b5c8e"
+DRAKE_CHECKSUM = "15e78356838fe375739329db8b4c633be56f7140ef4cd40ea5a6859eb3f3a80f"
 
 # Before changing the COMMIT, temporarily uncomment the next line so that Bazel
 # displays the suggested new value for the CHECKSUM.

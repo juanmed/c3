@@ -61,7 +61,7 @@ class SurfaceVelocityTest : public ::testing::Test {
     const drake::geometry::GeometryId geom_id =
         plant_->GetCollisionGeometriesForBody(conveyor_belt_body).at(0);
     plant_->DeclareSurfaceVelocityInputPort(
-        geom_id, Eigen::Vector3d(0.0, 1.0, 0.0), 0.0);
+        geom_id, Eigen::Vector3d(0.0, 1.0, 0.0), 0.5);
 
     plant_->set_name("plant_");
     plant_->Finalize();

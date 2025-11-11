@@ -271,6 +271,9 @@ TEST_F(SurfaceVelocityTest, SurfaceVelocityStewartTrinkle) {
       *plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_,
       contact_geometries_, options_);
 
+  int n_b = lcs_factory->GetNumContactVelocityBiases(*plant_, *plant_context_,
+                                                     contact_geometries_);
+
   // Create some state and input vectors to update the LCS
   // Make sure to not zero all elements of state because some correspond
   // to orientation, which an throw if an ill-formed element is passed
@@ -278,7 +281,7 @@ TEST_F(SurfaceVelocityTest, SurfaceVelocityStewartTrinkle) {
   const auto v0 = plant_->GetVelocities(*plant_context_);
   drake::VectorX<double> state(q0.size() + v0.size());
   state << q0, v0;
-  drake::VectorX<double> input = VectorXd::Zero(plant_->num_actuators() + 1);
+  drake::VectorX<double> input = VectorXd::Zero(plant_->num_actuators() + n_b);
   lcs_factory->UpdateStateAndInput(state, input);
 
   LCS lcs = lcs_factory->GenerateLCS();
@@ -287,16 +290,15 @@ TEST_F(SurfaceVelocityTest, SurfaceVelocityStewartTrinkle) {
 
   // Verify elements in H have the expected values
   constexpr double tol = 1e-10;
-  // EXPECT_LT(std::abs(H(0, 1) - 0.0), tol);
-  // EXPECT_LT(std::abs(H(1, 1) - 0.0),
-  //           tol);  // No normal component of surface velocity
-  // EXPECT_LT(std::abs(H(2, 1) - 0.0),
-  //           tol);  // No +Y component of surface velocity
-  // EXPECT_LT(std::abs(H(3, 1) - 0.0),
-  //           tol);  // No -Y component of surface velocity
-  // EXPECT_LT(std::abs(H(4, 1) - 1.0), tol);  // +Z component of surface
-  // velocity EXPECT_LT(std::abs(H(5, 1) + 1.0), tol);  // -Z component of
-  // surface velocity
+  EXPECT_LT(std::abs(H(0, 0) - 0.0), tol);
+  EXPECT_LT(std::abs(H(1, 0) - 0.0),
+            tol);  // No normal component of surface velocity
+  EXPECT_LT(std::abs(H(2, 0) - 0.0),
+            tol);  // No +Y component of surface velocity
+  EXPECT_LT(std::abs(H(3, 0) - 0.0),
+            tol);  // No -Y component of surface velocity
+  EXPECT_LT(std::abs(H(4, 0) - 1.0), tol);  // +Z component of surface velocity
+  EXPECT_LT(std::abs(H(5, 0) + 1.0), tol);  // -Z component of surface velocity
   std::cout << "LCS \n" << lcs << std::endl;
 }
 
@@ -306,10 +308,8 @@ TEST_F(SurfaceVelocityTest, SurfaceVelocityAnitescu) {
       *plant_, *plant_context_, *plant_autodiff_, *plant_autodiff_context_,
       contact_geometries_, options_);
 
-  std::cout << "Num of surf vels: "
-            << lcs_factory->GetNumContactVelocityBiases(
-                   *plant_, *plant_context_, contact_geometries_)
-            << std::endl;
+  int n_b = lcs_factory->GetNumContactVelocityBiases(*plant_, *plant_context_,
+                                                     contact_geometries_);
 
   // Create some state and input vectors to update the LCS
   // Make sure to not zero all elements of state because some correspond
@@ -318,19 +318,19 @@ TEST_F(SurfaceVelocityTest, SurfaceVelocityAnitescu) {
   const auto v0 = plant_->GetVelocities(*plant_context_);
   drake::VectorX<double> state(q0.size() + v0.size());
   state << q0, v0;
-  drake::VectorX<double> input = VectorXd::Zero(plant_->num_actuators() + 1);
+  drake::VectorX<double> input = VectorXd::Zero(plant_->num_actuators() + n_b);
   lcs_factory->UpdateStateAndInput(state, input);
   LCS lcs = lcs_factory->GenerateLCS();
-  // const Eigen::MatrixXd& H = lcs.H().at(0);
-  // EXPECT_EQ(H.cols(), 1);
+  const Eigen::MatrixXd& H = lcs.H().at(0);
+  EXPECT_EQ(H.cols(), 1);
 
   // Verify elements in H have the expected values
-  // constexpr double tol = 1e-10;
-  // EXPECT_LT(std::abs(H(0, 1) - 0.0), tol);
-  // EXPECT_LT(std::abs(H(1, 1) - 0.0), tol);
-  // EXPECT_LT(std::abs(H(2, 1) - 1.0), tol);
-  // EXPECT_LT(std::abs(H(3, 1) + 1.0), tol);
-  // std::cout << "LCS \n" << lcs << std::endl;
+  constexpr double tol = 1e-10;
+  EXPECT_LT(std::abs(H(0, 0) - 0.0), tol);
+  EXPECT_LT(std::abs(H(1, 0) - 0.0), tol);
+  EXPECT_LT(std::abs(H(2, 0) - 1.0), tol);
+  EXPECT_LT(std::abs(H(3, 0) + 1.0), tol);
+  std::cout << "LCS \n" << lcs << std::endl;
 }
 
 }  // namespace test
