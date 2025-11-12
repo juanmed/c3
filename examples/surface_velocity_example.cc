@@ -115,6 +115,25 @@ int surface_velocity_example() {
       sim_geom_id, Eigen::Vector3d(0.0, 1.0, 0.0), 0.0);
   plant_for_sim.Finalize();
 
+  std::vector<std::string> q_names = plant_for_sim.GetPositionNames();
+  std::vector<std::string> v_names = plant_for_sim.GetVelocityNames();
+  std::vector<std::string> x_names = plant_for_sim.GetStateNames();  
+
+  std::cout << "Qs" << std::endl;
+  for (const auto& q : q_names) {
+    std::cout << q << std::endl;
+  }
+
+  std::cout << "Vs" << std::endl;
+  for (const auto& q : v_names) {
+    std::cout << q << std::endl;
+  }
+
+  std::cout << "Xs" << std::endl;
+  for (const auto& q : x_names) {
+    std::cout << q << std::endl;
+  }
+
   // Add the C3 controller.
   C3::CostMatrices cost = C3::CreateCostMatricesFromC3Options(
       options.c3_options, options.lcs_factory_options.N);
@@ -229,7 +248,7 @@ int surface_velocity_example() {
   simulator.set_target_realtime_rate(1.0);
   simulator.Initialize();
   visualizer.StartRecording();
-  simulator.AdvanceTo(20.0);
+  simulator.AdvanceTo(40.0);
   visualizer.PublishRecording();
 
   // Plot data
