@@ -23,8 +23,12 @@ struct C3Options {
   int admm_iter = 3;  // total number of ADMM iterations
 
   // See comments below for how we parse the .yaml into the cost matrices
-  double gamma;          // scaling factor for state and input the cost matrices
-  float rho_scale = 10;  // scaling of rho parameter (/rho = rho_scale * /rho)
+  // Discount on later samples of the plant state x=[q; v] and plant inputs u.
+  double gamma;
+  // ADMM penalty scaling that adjusts how strongly the QP (
+  // z = [x; lambda; u]) must agree with the projected MultibodyPlant
+  // variables; directly rescales the contact/actuation residuals stored in G.
+  float rho_scale = 10;
   Eigen::MatrixXd Q;
   Eigen::MatrixXd R;
   Eigen::MatrixXd G;
@@ -35,10 +39,10 @@ struct C3Options {
   // R = w_R * diag(r_vector)
   // G = w_G * diag(g_vector)
   // U = w_U * diag(u_vector)
-  double w_Q;
-  double w_R;
-  double w_G;
-  double w_U;
+  double w_Q;  // Global multiplier for the state weights on q and v.
+  double w_R;  // Global multiplier for plant actuator / surface-speed inputs.
+  double w_G;  // Global multiplier for ADMM/QP weights on [x; lambda; u].
+  double w_U;  // Global multiplier for projection weights on [x; lambda; u].
 
   // Unused except when parsing the costs from a yaml
   // We assume a diagonal Q, R, G, U matrix, so we can just specify the diagonal
@@ -46,24 +50,34 @@ struct C3Options {
   // the g_vector and u_vector into the x, lambda, and u terms. *_lambda are the
   // default weights. If not specified, the Stewart and Trinkle formulation of
   // *_gamma, *_lambda_n, *_lambda_t will be used.
-  std::vector<double> q_vector;
-  std::vector<double> r_vector;
+  std::vector<double> q_vector;  // Per-state weights ordered as [q; v].
+  std::vector<double> r_vector;  // Per-input weights for actuators and any
+                                 // additional plant input ports (e.g., belt
+                                 // surface-speed commands).
 
+  // All g_* and u_* entries follow the stacked decision variable ordering
+  // z = [x; lambda; u], where x = [q; v] are MultibodyPlant positions and
+  // velocities, lambda = [gamma; lambda_n; lambda_t] collects the contact
+  // complementarity variables produced by LCSFactory, and u matches the plant's
+  // actuation plus any explicit input ports (surface velocities, etc.).
   std::vector<double> g_vector;
-  std::vector<double> g_x;
-  std::vector<double> g_gamma;
-  std::vector<double> g_lambda_n;
-  std::vector<double> g_lambda_t;
-  std::vector<double> g_lambda;
-  std::vector<double> g_u;
+  std::vector<double> g_x;      // Weights on the state portion of z.
+  std::vector<double> g_gamma;  // Weights on normal gap slack variables γ for
+                                // each plant contact pair.
+  std::vector<double> g_lambda_n;  // Weights on normal contact impulses λₙ.
+  std::vector<double> g_lambda_t;  // Weights on tangential/friction impulses λₜ
+                                   // (one entry per friction direction).
+  std::vector<double> g_lambda;    // Direct specification of the entire
+                                   // λ-block when custom ordering is needed.
+  std::vector<double> g_u;         // Weights on plant inputs within z.
 
   std::vector<double> u_vector;
-  std::vector<double> u_x;
-  std::vector<double> u_gamma;
-  std::vector<double> u_lambda_n;
-  std::vector<double> u_lambda_t;
-  std::vector<double> u_lambda;
-  std::vector<double> u_u;
+  std::vector<double> u_x;         // Projection penalty on the plant state x.
+  std::vector<double> u_gamma;     // Projection penalty on γ slack variables.
+  std::vector<double> u_lambda_n;  // Projection penalty on λₙ impulses.
+  std::vector<double> u_lambda_t;  // Projection penalty on λₜ impulses.
+  std::vector<double> u_lambda;    // Direct override for the full λ block.
+  std::vector<double> u_u;         // Projection penalty on plant inputs.
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -102,22 +116,25 @@ struct C3Options {
 
     g_vector = std::vector<double>();
     g_vector.insert(g_vector.end(), g_x.begin(), g_x.end());
+    // Load contacts variables specified individually or in a lumped vector
+    // g_lambda but not both
     if (g_lambda.empty()) {
       g_lambda.insert(g_lambda.end(), g_gamma.begin(), g_gamma.end());
       g_lambda.insert(g_lambda.end(), g_lambda_n.begin(), g_lambda_n.end());
       g_lambda.insert(g_lambda.end(), g_lambda_t.begin(), g_lambda_t.end());
     }
     g_vector.insert(g_vector.end(), g_lambda.begin(), g_lambda.end());
-
     g_vector.insert(g_vector.end(), g_u.begin(), g_u.end());
+
     u_vector = std::vector<double>();
     u_vector.insert(u_vector.end(), u_x.begin(), u_x.end());
+    // Load contacts variables specified individually or in a lumped vector
+    // g_lambda but not both
     if (u_lambda.empty()) {
       u_lambda.insert(u_lambda.end(), u_gamma.begin(), u_gamma.end());
       u_lambda.insert(u_lambda.end(), u_lambda_n.begin(), u_lambda_n.end());
       u_lambda.insert(u_lambda.end(), u_lambda_t.begin(), u_lambda_t.end());
     }
-
     u_vector.insert(u_vector.end(), u_lambda.begin(), u_lambda.end());
     u_vector.insert(u_vector.end(), u_u.begin(), u_u.end());
 

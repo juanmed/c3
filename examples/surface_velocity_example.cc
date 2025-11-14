@@ -117,7 +117,7 @@ int surface_velocity_example() {
 
   std::vector<std::string> q_names = plant_for_sim.GetPositionNames();
   std::vector<std::string> v_names = plant_for_sim.GetVelocityNames();
-  std::vector<std::string> x_names = plant_for_sim.GetStateNames();  
+  std::vector<std::string> x_names = plant_for_sim.GetStateNames();
 
   std::cout << "Qs" << std::endl;
   for (const auto& q : q_names) {
@@ -157,7 +157,7 @@ int surface_velocity_example() {
 
   // Add a constant vector source for the desired state.
   Eigen::VectorXd xd(6);
-  xd << 0, 0, 1.25, 0, 0, 0;
+  xd << 0, 0, 0.5, 0, 0, 0;
   auto xdes = plant_for_sim_builder
                   .AddSystem<drake::systems::ConstantVectorSource<double>>(xd);
 
@@ -173,12 +173,20 @@ int surface_velocity_example() {
       vector_to_timestamped_vector->get_output_port_timestamped_state(),
       c3_controller->get_input_port_lcs_state());
 
+  auto sim_state_logger = drake::systems::LogVectorOutput(
+      plant_for_sim.get_state_output_port(), &plant_for_sim_builder);
+  sim_state_logger->set_name("sim_state_logger");
+
   // lcs factory system -> c3 controller's LCS input
   // x_des -> c3 controller's x_des input
   plant_for_sim_builder.Connect(lcs_factory_system->get_output_port_lcs(),
                                 c3_controller->get_input_port_lcs());
   plant_for_sim_builder.Connect(xdes->get_output_port(),
                                 c3_controller->get_input_port_target());
+
+  auto des_state_logger = drake::systems::LogVectorOutput(
+      xdes->get_output_port(), &plant_for_sim_builder);
+  des_state_logger->set_name("des_state_logger");
 
   // c3 controller's output -> C3Solution2Input -> plant's conveyor speed input
   auto c3_input = plant_for_sim_builder.AddSystem<C3Solution2Input>(1);
@@ -257,6 +265,26 @@ int surface_velocity_example() {
   CallPython("clf");
   CallPython("plot", x_log.sample_times(), x_log.data().transpose());
   CallPython("title", "Control input");
+
+  const auto& state_log = sim_state_logger->FindLog(simulator.get_context());
+  CallPython("figure", 2);
+  CallPython("clf");
+  CallPython("plot", state_log.sample_times(), state_log.data().transpose());
+  CallPython("legend", ToPythonTuple("x", "z", "pitch", "vx", "vz", "wy"));
+  CallPython("title", "Sim Plant State");
+  CallPython("grid", true);
+
+  const auto& des_state_log =
+      des_state_logger->FindLog(simulator.get_context());
+  CallPython("figure", 3);
+  CallPython("clf");
+  CallPython("plot", des_state_log.sample_times(),
+             des_state_log.data().transpose());
+  CallPython("legend",
+             ToPythonTuple("x_d", "z_d", "pitch_d", "vx_d", "vz_d", "wy_d"));
+  CallPython("title", "Sim Plant Desired State");
+  CallPython("grid", true);
+
   return 0;
 }
 
