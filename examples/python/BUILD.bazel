@@ -48,3 +48,15 @@ py_binary(
         "//examples:example_data"
     ],
 )
+
+py_binary(
+    name = "surface_velocity",
+    srcs = ["surface_velocity.py"],
+    deps = [
+        "//bindings/pyc3:pyc3",
+        ":c3_example",
+    ],
+    data = [
+        "//examples:example_data"
+    ],
+)

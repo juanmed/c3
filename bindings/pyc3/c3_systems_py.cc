@@ -37,8 +37,9 @@ PYBIND11_MODULE(systems, m) {
   py::module::import("pydrake.systems.framework");
   py::class_<C3Controller, LeafSystem<double>>(m, "C3Controller")
       .def(py::init<const MultibodyPlant<double>&, const C3::CostMatrices,
-                    C3ControllerOptions>(),
-           py::arg("plant"), py::arg("costs"), py::arg("options"))
+                    C3ControllerOptions, int>(),
+           py::arg("plant"), py::arg("costs"), py::arg("options"),
+           py::arg("num_contact_velocity_biases") = 0)
       .def("get_input_port_target", &C3Controller::get_input_port_target,
            py::return_value_policy::reference)
       .def("get_input_port_lcs_state", &C3Controller::get_input_port_lcs_state,
@@ -102,7 +103,9 @@ PYBIND11_MODULE(systems, m) {
            py::return_value_policy::reference)
       .def("get_output_port_lcs_contact_jacobian",
            &LCSFactorySystem::get_output_port_lcs_contact_jacobian,
-           py::return_value_policy::reference);
+           py::return_value_policy::reference)
+      .def("GetNumContactVelocityBiases",
+           &LCSFactorySystem::GetNumContactVelocityBiases);
 
   py::class_<C3Output::C3Solution>(m, "C3Solution")
       .def(py::init<>())
