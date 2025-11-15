@@ -35,6 +35,90 @@ using c3::systems::LCSSimulator;
 using drake::common::CallPython;
 using drake::common::ToPythonTuple;
 
+int conveyor_belt_example() {
+  drake::multibody::MultibodyPlantConfig config;
+  config.time_step = 0.0;
+  config.penetration_allowance = 0.001;
+  config.contact_model =
+      "point";  // "hydroelastic" or "point" or "hydroelastic_with_fallback"
+  config.contact_surface_representation = "polygon";  // "polygon" or "triangle"
+
+  drake::geometry::SceneGraphConfig scene_graph_config;
+  scene_graph_config.default_proximity_properties.margin = 1e-3;
+
+  // Plant for LCS system
+  drake::systems::DiagramBuilder<double> plant_for_lcs_builder;
+  auto [plant_for_lcs, scene_graph_for_lcs] =
+      drake::multibody::AddMultibodyPlant(config, scene_graph_config,
+                                          &plant_for_lcs_builder);
+  std::string conveyor_belt_url =
+      "examples/resources/conveyor_belt/conveyor_belt.sdf";
+  drake::multibody::Parser parser(&plant_for_lcs_builder);
+  parser.AddModels(conveyor_belt_url);
+
+  // Overrides the surface speed and surface velocity normal defined through
+  // the sdf file, and also create their input ports to dynamic modify them.
+  const drake::multibody::RigidBody<double>& conveyor_belt_body =
+      plant_for_lcs.GetBodyByName("conveyor_belt");
+  const drake::geometry::GeometryId geom_id =
+      plant_for_lcs.GetCollisionGeometriesForBody(conveyor_belt_body).at(0);
+  plant_for_lcs.DeclareSurfaceVelocityInputPort(
+      geom_id, Eigen::Vector3d(0.0, 1.0, 0.0), 5.0);
+  plant_for_lcs.set_name("plant_for_lcs");
+  plant_for_lcs.Finalize();
+
+  // auto plant_diagram = plant_for_lcs_builder.Build();
+
+  // Set up visualization
+  auto meshcat = std::make_shared<drake::geometry::Meshcat>();
+  drake::geometry::MeshcatVisualizer<double>::AddToBuilder(
+      &plant_for_lcs_builder, scene_graph_for_lcs, meshcat);
+  drake::geometry::MeshcatVisualizerParams meshcat_params;
+  meshcat_params.delete_on_initialization_event = false;
+  auto& visualizer = drake::geometry::MeshcatVisualizerd::AddToBuilder(
+      &plant_for_lcs_builder, scene_graph_for_lcs, meshcat,
+      std::move(meshcat_params));
+  drake::multibody::meshcat::ContactVisualizerParams cparams;
+  cparams.newtons_per_meter = 60.0;
+  drake::multibody::meshcat::ContactVisualizerd::AddToBuilder(
+      &plant_for_lcs_builder, plant_for_lcs, meshcat, std::move(cparams));
+
+  // Set up context
+  std::unique_ptr<drake::systems::Diagram<double>> diagram =
+      plant_for_lcs_builder.Build();
+  std::unique_ptr<drake::systems::Context<double>> diagram_context =
+      diagram->CreateDefaultContext();
+  diagram->SetDefaultContext(diagram_context.get());
+
+  // auto& plant_context =
+  //     diagram->GetMutableSubsystemContext(plant_for_lcs, diagram_context.get());
+  // const auto q0 = plant_for_s.GetPositions(plant_context);
+  // const auto v0 = plant_for_sim.GetVelocities(plant_context);
+  // drake::VectorX<double> state(q0.size() + v0.size());
+  // state << q0, v0;
+  // plant_for_sim.SetPositionsAndVelocities(&plant_context, state);
+
+  // // Force visualization
+  // diagram->ForcedPublish(*diagram_context);
+
+  // const std::string path =
+  //     "/home/juanmedrano_eng/repos/c3/examples/conveyor_belt_diagram.dot";
+  // std::ofstream graphviz(path);
+  // std::map<std::string, std::string> options_gv{{"plant/split", "I/O"}};
+  // graphviz << diagram->GetGraphvizString({}, options_gv);
+
+  // Set up simulator
+  drake::systems::Simulator<double> simulator(*diagram,
+                                              std::move(diagram_context));
+  simulator.set_target_realtime_rate(1.0);
+  simulator.Initialize();
+  visualizer.StartRecording();
+  simulator.AdvanceTo(40.0);
+  visualizer.PublishRecording();
+
+  return 0;
+}
+
 int surface_velocity_example() {
   drake::multibody::MultibodyPlantConfig config;
   config.time_step = 0.0;
@@ -292,5 +376,6 @@ int main(int argc, char* argv[]) {
   // Initialize gflags.
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   surface_velocity_example();
+  //conveyor_belt_example();
   return 0;
 }
