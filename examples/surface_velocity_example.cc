@@ -91,7 +91,8 @@ int conveyor_belt_example() {
   diagram->SetDefaultContext(diagram_context.get());
 
   // auto& plant_context =
-  //     diagram->GetMutableSubsystemContext(plant_for_lcs, diagram_context.get());
+  //     diagram->GetMutableSubsystemContext(plant_for_lcs,
+  //     diagram_context.get());
   // const auto q0 = plant_for_s.GetPositions(plant_context);
   // const auto v0 = plant_for_sim.GetVelocities(plant_context);
   // drake::VectorX<double> state(q0.size() + v0.size());
@@ -241,7 +242,7 @@ int surface_velocity_example() {
 
   // Add a constant vector source for the desired state.
   Eigen::VectorXd xd(6);
-  xd << 0, 0, 0.5, 0, 0, 0;
+  xd << 1, 0, 0, 0, 0, 0;
   auto xdes = plant_for_sim_builder
                   .AddSystem<drake::systems::ConstantVectorSource<double>>(xd);
 
@@ -319,11 +320,11 @@ int surface_velocity_example() {
 
   auto& plant_context =
       diagram->GetMutableSubsystemContext(plant_for_sim, diagram_context.get());
-  const auto q0 = plant_for_sim.GetPositions(plant_context);
-  const auto v0 = plant_for_sim.GetVelocities(plant_context);
-  drake::VectorX<double> state(q0.size() + v0.size());
-  state << q0, v0;
-  plant_for_sim.SetPositionsAndVelocities(&plant_context, state);
+  // const auto q0 = plant_for_sim.GetPositions(plant_context);
+  // const auto v0 = plant_for_sim.GetVelocities(plant_context);
+  // drake::VectorX<double> state(q0.size() + v0.size());
+  // state << q0, v0;
+  // plant_for_sim.SetPositionsAndVelocities(&plant_context, state);
 
   // Force visualization
   diagram->ForcedPublish(*diagram_context);
@@ -340,7 +341,7 @@ int surface_velocity_example() {
   simulator.set_target_realtime_rate(1.0);
   simulator.Initialize();
   visualizer.StartRecording();
-  simulator.AdvanceTo(40.0);
+  simulator.AdvanceTo(20.0);
   visualizer.PublishRecording();
 
   // Plot data
@@ -376,6 +377,6 @@ int main(int argc, char* argv[]) {
   // Initialize gflags.
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   surface_velocity_example();
-  //conveyor_belt_example();
+  // conveyor_belt_example();
   return 0;
 }

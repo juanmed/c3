@@ -15,6 +15,7 @@
 #include <drake/systems/primitives/constant_vector_source.h>
 #include <drake/systems/primitives/demultiplexer.h>
 #include <drake/systems/primitives/multiplexer.h>
+#include <drake/systems/primitives/vector_log_sink.h>
 #include <drake/systems/primitives/zero_order_hold.h>
 #include <gflags/gflags.h>
 
@@ -26,6 +27,7 @@
 #include "systems/lcs_factory_system.h"
 #include "systems/lcs_simulator.h"
 
+#include "drake/common/proto/call_python.h"
 #include "drake/multibody/plant/externally_applied_spatial_force.h"
 #include "drake/systems/rendering/multibody_position_to_geometry_pose.h"
 
@@ -50,6 +52,9 @@ using drake::multibody::MultibodyPlant;
 using drake::multibody::Parser;
 using drake::systems::DiagramBuilder;
 using drake::systems::rendering::MultibodyPositionToGeometryPose;
+
+using drake::common::CallPython;
+using drake::common::ToPythonTuple;
 
 class SoftWallReactionForce final : public drake::systems::LeafSystem<double> {
   // Converted to C++ from cartpole_softwall.py by Hien
@@ -185,7 +190,8 @@ int RunCartpoleTest() {
   // const auto v0 = plant_for_lcs.GetVelocities(plant_for_lcs_context);
   // drake::VectorX<double> state(q0.size() + v0.size());
   // state << q0, v0;
-  // drake::VectorX<double> input = VectorXd::Zero(plant_for_lcs.num_actuators());
+  // drake::VectorX<double> input =
+  // VectorXd::Zero(plant_for_lcs.num_actuators());
   // lcs_factory->UpdateStateAndInput(state, input);
   // LCS lcs = lcs_factory->GenerateLCS();
   // std::cout << "LCS: \n" << lcs << std::endl;
@@ -204,6 +210,10 @@ int RunCartpoleTest() {
   builder.Connect(plant.get_state_output_port(),
                   vector_to_timestamped_vector->get_input_port_state());
 
+  auto state_logger =
+      drake::systems::LogVectorOutput(plant.get_state_output_port(), &builder);
+  state_logger->set_name("state_logger");
+
   // Connect controller inputs.
   builder.Connect(
       vector_to_timestamped_vector->get_output_port_timestamped_state(),
@@ -212,6 +222,10 @@ int RunCartpoleTest() {
                   c3_controller->get_input_port_lcs());
   builder.Connect(xdes->get_output_port(),
                   c3_controller->get_input_port_target());
+
+  auto des_state_logger =
+      drake::systems::LogVectorOutput(xdes->get_output_port(), &builder);
+  des_state_logger->set_name("des_state_logger");
 
   // Add and connect C3 solution input system.
   auto c3_input = builder.AddSystem<C3Solution2Input>(1);
@@ -256,6 +270,12 @@ int RunCartpoleTest() {
 
   auto diagram = builder.Build();
 
+  std::vector<std::string> x_names = plant.GetStateNames();
+  std::cout << "Xs" << std::endl;
+  for (const auto& q : x_names) {
+    std::cout << q << std::endl;
+  }
+
   if (!FLAGS_diagram_path.empty())
     c3::systems::common::DrawAndSaveDiagramGraph(*diagram, FLAGS_diagram_path);
 
@@ -281,6 +301,24 @@ int RunCartpoleTest() {
   simulator.Initialize();
   simulator.AdvanceTo(10.0);  // Run
   //   simulation for 10 seconds.
+
+  const auto& state_log = state_logger->FindLog(simulator.get_context());
+  CallPython("figure", 1);
+  CallPython("clf");
+  CallPython("plot", state_log.sample_times(), state_log.data().transpose());
+  CallPython("legend", ToPythonTuple("cart_x", "pole A", "cart v", "pole w"));
+  CallPython("title", "Plant State");
+  CallPython("grid", true);
+
+  const auto& des_state_log =
+      des_state_logger->FindLog(simulator.get_context());
+  CallPython("figure", 2);
+  CallPython("clf");
+  CallPython("plot", des_state_log.sample_times(),
+             des_state_log.data().transpose());
+  CallPython("legend", ToPythonTuple("cart_x", "pole A", "cart v", "pole w"));
+  CallPython("title", "Desired Plant State");
+  CallPython("grid", true);
 
   return 0;
 }
@@ -368,11 +406,11 @@ int RunPivotingTest() {
   // const auto v0 = plant_for_lcs.GetVelocities(plant_for_lcs_context);
   // drake::VectorX<double> state(q0.size() + v0.size());
   // state << q0, v0;
-  // drake::VectorX<double> input = VectorXd::Zero(plant_for_lcs.num_actuators());
+  // drake::VectorX<double> input =
+  // VectorXd::Zero(plant_for_lcs.num_actuators());
   // lcs_factory->UpdateStateAndInput(state, input);
   // LCS lcs = lcs_factory->GenerateLCS();
   // std::cout << "LCS: \n" << lcs << std::endl;
-
 
   // Add the C3 controller.
   auto c3_controller =
