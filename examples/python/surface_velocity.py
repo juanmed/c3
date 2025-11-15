@@ -28,7 +28,6 @@ from pyc3 import (
     LoadC3ControllerOptions,
 )
 
-
 def _declare_surface_velocity_port(plant):
     belt_body = plant.GetBodyByName("conveyor_belt")
     geom_id = plant.GetCollisionGeometriesForBody(belt_body)[0]
@@ -195,8 +194,8 @@ def run_surface_velocity_example():
 
     diagram.ForcedPublish(diagram_context)
 
-    dot_path = Path(__file__).resolve().parent / "conveyor_belt_diagram.dot"
-    dot_path.write_text(diagram.GetGraphvizString())
+    # dot_path = Path(__file__).resolve().parent / "conveyor_belt_diagram.dot"
+    # dot_path.write_text(diagram.GetGraphvizString())
 
     simulator = Simulator(diagram, diagram_context)
     simulator.set_target_realtime_rate(1.0)

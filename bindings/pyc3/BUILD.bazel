@@ -81,7 +81,9 @@ PY_LIBRARIES = [
 py_library(
     name = "pyc3",
     imports = PACKAGE_INFO.py_imports,
-    deps = PY_LIBRARIES,
+    deps = PY_LIBRARIES + [
+        "@drake//bindings/pydrake:pydrake",
+    ],
 )
 
 # Use py_package to collect all transitive dependencies of a target,

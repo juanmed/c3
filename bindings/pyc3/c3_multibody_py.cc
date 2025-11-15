@@ -8,6 +8,9 @@
 #include "multibody/multibody_utils.h"
 
 #include "drake/bindings/pydrake/common/sorted_pair_pybind.h"
+#include "drake/geometry/geometry_ids.h"
+#include "drake/multibody/plant/multibody_plant.h"
+#include "drake/systems/framework/input_port.h"
 
 namespace py = pybind11;
 namespace c3 {
@@ -15,6 +18,46 @@ namespace multibody {
 namespace pyc3 {
 PYBIND11_MODULE(multibody, m) {
   m.doc() = "C3 Multibody Utilities";
+
+  py::module multibody_module = py::module::import("pydrake.multibody.plant");
+  py::object multibody_class = multibody_module.attr("MultibodyPlant");
+  multibody_class.attr("DeclareSurfaceVelocityInputPort") = py::cpp_function(
+      [](drake::multibody::MultibodyPlant<double>* plant,
+         const drake::geometry::GeometryId& geometry_id,
+         const Eigen::Vector3d& default_velocity_normal, double default_speed) {
+        plant->DeclareSurfaceVelocityInputPort(geometry_id,
+                                               default_velocity_normal,
+                                               default_speed);
+      },
+      py::is_method(multibody_class), py::arg("geometry_id"),
+      py::arg("default_velocity_normal"), py::arg("default_speed"));
+  multibody_class.attr("get_surface_speed_input_port") = py::cpp_function(
+      [](drake::multibody::MultibodyPlant<double>* plant,
+         const drake::geometry::GeometryId& geometry_id) -> py::object {
+        auto maybe_port = plant->get_surface_speed_input_port(geometry_id);
+        if (!maybe_port.has_value()) {
+          return py::none();
+        }
+        auto& port = maybe_port.value().get();
+        return py::cast(&port, py::return_value_policy::reference_internal,
+                        py::cast(plant));
+      },
+      py::is_method(multibody_class), py::arg("geometry_id"));
+  multibody_class.attr("get_surface_velocity_normal_input_port") =
+      py::cpp_function(
+          [](drake::multibody::MultibodyPlant<double>* plant,
+             const drake::geometry::GeometryId& geometry_id) -> py::object {
+            auto maybe_port =
+                plant->get_surface_velocity_normal_input_port(geometry_id);
+            if (!maybe_port.has_value()) {
+              return py::none();
+            }
+            auto& port = maybe_port.value().get();
+            return py::cast(&port,
+                            py::return_value_policy::reference_internal,
+                            py::cast(plant));
+          },
+          py::is_method(multibody_class), py::arg("geometry_id"));
 
   // LCSFactory Class and ContactModel enum
   py::enum_<c3::multibody::ContactModel>(m, "ContactModel")
