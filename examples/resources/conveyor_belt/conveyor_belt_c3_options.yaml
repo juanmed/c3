@@ -28,23 +28,23 @@ c3_options:
 
   admm_iter: 5
 
-  gamma: 1.0
-  rho_scale: 1.0 #matrix scaling
-  w_Q: 5
-  w_R: 5 #
-  w_G: 0.05 #
+  gamma: 0.62
+  rho_scale: 0.4 #matrix scaling
+  w_Q: 4.1
+  w_R: 4 #
+  w_G: 0.3 #
   w_U: 1 #
-  q_vector: [ 5000, 5, 5000, 5000, 50, 0.5 ]   #State Tracking Error, assuming diagonal
-  r_vector: [ 0.1 ] #Single surface-velocity input
-  g_x: [ 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 ]
+  q_vector: [ 47000, 0.5, 44000, 2000, 50, 0.05 ]   #State Tracking Error, assuming diagonal
+  r_vector: [ 0.2 ] #Single surface-velocity input
+  g_x: [ 0.04, 0.2, 0.01, 0.05, 0.2, 0.01 ]
   g_gamma: [ 1 ]
   g_lambda_n: [ 1 ]
   g_lambda_t: [ 1, 1, 1, 1 ]
   g_lambda: []
   g_u: [ 1 ] 
-  u_x: [ 1, 1, 1, 1, 1, 1 ]
+  u_x: [ 0.3, 0.7, 8, 1, 1.5, 1.5 ]
   u_gamma: [ 1 ]
   u_lambda_n: [ 1 ]
   u_lambda_t: [ 1, 1, 1, 1 ]
   u_lambda: []
-  u_u: [ 1 ] #Weight for the surface-velocity command
+  u_u: [ 1.3 ] #Weight for the surface-velocity command
