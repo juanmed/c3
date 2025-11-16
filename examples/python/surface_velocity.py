@@ -44,11 +44,16 @@ DEFAULT_OPTIONS_PATH = (
     / "conveyor_belt_c3_options.yaml"
 )
 DEFAULT_TARGET_STATE = np.array([0.0, 0.0, 1.25, 0.0, 0.0, 0.0])
+DEFAULT_CONTROL_STATES = np.array(
+    [False, False, True, False, False, False], dtype=bool
+)
+
 
 def _declare_surface_velocity_port(plant):
     belt_body = plant.GetBodyByName("conveyor_belt")
     geom_id = plant.GetCollisionGeometriesForBody(belt_body)[0]
-    plant.DeclareSurfaceVelocityInputPort(geom_id, np.array([0.0, 1.0, 0.0]), 0.0)
+    plant.DeclareSurfaceVelocityInputPort(
+        geom_id, np.array([0.0, 1.0, 0.0]), 0.0)
     return geom_id
 
 
@@ -84,7 +89,10 @@ class SurfaceVelocityExperiment:
         conveyor_belt_sdf: Union[str, Path] = DEFAULT_SDF_PATH,
         options_path: Union[str, Path] = DEFAULT_OPTIONS_PATH,
         target_state: Optional[Sequence[float]] = None,
+        control_states: Optional[Sequence[bool]] = None,
         settling_tolerance: float = 1e-2,
+        settling_epsilon: float = 5e-2,
+        settling_window: float = 0.5,
         enable_visualization: bool = False,
         verbose: bool = False,
     ) -> None:
@@ -96,8 +104,11 @@ class SurfaceVelocityExperiment:
             else DEFAULT_TARGET_STATE.copy()
         )
         self.settling_tolerance = settling_tolerance
+        self.settling_epsilon = settling_epsilon
+        self.settling_window = settling_window
         self.enable_visualization = enable_visualization
         self.verbose = verbose
+        self.control_states = self._normalize_control_states(control_states)
 
     def run(
         self,
@@ -172,7 +183,8 @@ class SurfaceVelocityExperiment:
         xdes = builder.AddSystem(ConstantVectorSource(self.target_state))
 
         n_x = plant_for_sim.num_positions() + plant_for_sim.num_velocities()
-        vector_to_timestamped_vector = builder.AddSystem(Vector2TimestampedVector(n_x))
+        vector_to_timestamped_vector = builder.AddSystem(
+            Vector2TimestampedVector(n_x))
         builder.Connect(
             plant_for_sim.get_state_output_port(),
             vector_to_timestamped_vector.get_input_port_state(),
@@ -196,7 +208,8 @@ class SurfaceVelocityExperiment:
             c3_input.get_input_port_c3_solution(),
         )
 
-        surface_speed_port = plant_for_sim.get_surface_speed_input_port(sim_geom_id)
+        surface_speed_port = plant_for_sim.get_surface_speed_input_port(
+            sim_geom_id)
         if surface_speed_port is None:
             raise RuntimeError("Surface speed input port was not declared.")
         builder.Connect(
@@ -240,7 +253,8 @@ class SurfaceVelocityExperiment:
             )
             cparams = ContactVisualizerParams()
             cparams.newtons_per_meter = 60.0
-            ContactVisualizer.AddToBuilder(builder, plant_for_sim, meshcat, cparams)
+            ContactVisualizer.AddToBuilder(
+                builder, plant_for_sim, meshcat, cparams)
 
         diagram = builder.Build()
         diagram_context = diagram.CreateDefaultContext()
@@ -249,7 +263,8 @@ class SurfaceVelocityExperiment:
         )
         q0 = plant_for_sim.GetPositions(plant_context)
         v0 = plant_for_sim.GetVelocities(plant_context)
-        plant_for_sim.SetPositionsAndVelocities(plant_context, np.hstack([q0, v0]))
+        plant_for_sim.SetPositionsAndVelocities(
+            plant_context, np.hstack([q0, v0]))
 
         diagram.ForcedPublish(diagram_context)
 
@@ -302,6 +317,21 @@ class SurfaceVelocityExperiment:
             return list(value)
         return value
 
+    def _normalize_control_states(self, control_states):
+        if control_states is None:
+            mask = DEFAULT_CONTROL_STATES.copy()
+        else:
+            mask = np.array(control_states, dtype=bool)
+        expected_size = self.target_state.size
+        if mask.size != expected_size:
+            raise ValueError(
+                f"control_states must have length {expected_size}, "
+                f"got {mask.size}"
+            )
+        if not np.any(mask):
+            raise ValueError("control_states must select at least one state.")
+        return mask
+
     def _load_options(self, c3_overrides):
         if not c3_overrides:
             return LoadC3ControllerOptions(str(self.options_path))
@@ -324,25 +354,75 @@ class SurfaceVelocityExperiment:
     def _compute_metrics(self, times, state_trajectory):
         if state_trajectory.size == 0:
             return 0.0, 0.0, np.array([])
-        error = state_trajectory - self.target_state[:, None]
-        error_norm = np.linalg.norm(error, axis=0)
-        steady_state_error = float(error_norm[-1])
-        settling_time = self._compute_settling_time(times, error_norm)
-        return steady_state_error, settling_time, error_norm
 
-    def _compute_settling_time(self, times, error_norm):
+        tracked_state = np.sum(
+            state_trajectory[self.control_states, :], axis=0
+        )
+        tracked_target = float(np.sum(self.target_state[self.control_states]))
+        error_signal = tracked_state - tracked_target
+        abs_error = np.abs(error_signal)
+        steady_state_error = float(abs_error[-1])
+        settling_time = self._compute_settling_time(times, tracked_state)
+        return steady_state_error, settling_time, abs_error
+
+    def _compute_settling_time(self, times, signal):
         if len(times) == 0:
             return 0.0
-        satisfied = error_norm <= self.settling_tolerance
-        for idx, is_satisfied in enumerate(satisfied):
-            if is_satisfied and np.all(satisfied[idx:]):
-                return float(times[idx])
-        violating = np.where(~satisfied)[0]
-        if violating.size == 0:
-            return float(times[0])
-        last_idx = int(violating[-1])
-        last_idx = min(last_idx + 1, len(times) - 1)
-        return float(times[last_idx])
+        moving_average = self._compute_moving_average(
+            signal, times, window=self.settling_window
+        )
+        return moving_average
+
+    def _compute_moving_average(
+        self,
+        signal,
+        timestamps,
+        *,
+        epsilon=0.02,
+        window=0.5,
+    ):
+        """
+        Computes settling time for a second-order-like response.
+
+        Parameters
+        ----------
+        signal : array_like
+            Response values.
+        timestamps : array_like
+            Time axis aligned with the signal.
+        epsilon : float, optional
+            Half-width of the settling band around the steady-state value.
+        window : float, optional
+            Duration (seconds) over which the moving average is computed.
+
+        Returns
+        -------
+        float
+            Time when the moving average enters the settling band and stays there.
+        """
+        signal = np.asarray(signal, dtype=float)
+        timestamps = np.asarray(timestamps, dtype=float)
+        if signal.size == 0 or timestamps.size != signal.size:
+            raise ValueError(
+                "signal and timestamps must be non-empty and aligned")
+
+        dt = np.mean(np.diff(timestamps))
+        if dt <= 0:
+            raise ValueError("timestamps must be strictly increasing")
+        window_samples = max(1, int(round(window / dt)))
+        weights = np.ones(window_samples, dtype=float) / window_samples
+        moving_average = np.convolve(signal, weights, mode="valid")
+        ma_times = timestamps[window_samples - 1:]
+
+        steady_value = np.mean(signal[-window_samples:])
+        lower = steady_value - epsilon
+        upper = steady_value + epsilon
+
+        within_band = (moving_average >= lower) & (moving_average <= upper)
+        for idx, inside in enumerate(within_band):
+            if inside and np.all(within_band[idx:]):
+                return float(ma_times[idx])
+        return float(timestamps[-1])
 
 
 def run_surface_velocity_example():
@@ -363,7 +443,6 @@ def run_surface_velocity_example():
     plt.ylabel("Surface speed [m/s]")
     plt.show()
     return result
-
 
 
 if __name__ == "__main__":
