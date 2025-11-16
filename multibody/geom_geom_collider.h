@@ -99,7 +99,29 @@ class GeomGeomCollider {
    *         closest point on geometry B.
    */
   std::pair<drake::VectorX<double>, drake::VectorX<double>> CalcWitnessPoints(
-      const drake::systems::Context<double>& context);
+      const drake::systems::Context<T>& context);
+
+  /**
+   * @brief Computes a basis for contact forces in the world frame.
+   *
+   * Depending on the number of friction directions, this method constructs
+   * either a planar (2D) or polytope (3D) basis for the contact forces at the
+   * collision point, expressed in the world frame. For planar contact
+   * (num_friction_directions < 1), the basis is constructed from the contact
+   * normal and the provided planar normal. For 3D contact, a polytope basis is
+   * generated and rotated to align with the contact normal.
+   *
+   * @param context The context for the MultibodyPlant.
+   * @param num_friction_directions The number of friction directions for the
+   * polytope approximation. If less than 1, a planar basis is used.
+   * @param planar_normal The normal vector defining the plane for planar
+   * contact (default: {0, 1, 0}).
+   * @return A matrix whose rows form an orthonormal basis for the contact
+   * forces in the world frame.
+   */
+  Eigen::Matrix<double, Eigen::Dynamic, 3> CalcForceBasisInWorldFrame(
+      const drake::systems::Context<T>& context, int num_friction_directions,
+      const Eigen::Vector3d& planar_normal = {0, 1, 0}) const;
 
   /**
    * @brief Computes the force basis for a polytope approximation of a friction
@@ -142,14 +164,15 @@ class GeomGeomCollider {
    * @brief A struct to hold the results of a geometry query.
    *
    * This struct contains the signed distance pair, the frame IDs of the two
-   * geometries, the frames themselves, and the positions of the closest points
-   * on each geometry, expressed in their respective frames.
+   * geometries, the frames themselves, and the positions of the closest
+   * points on each geometry, expressed in their respective frames.
    */
   struct GeometryQueryResult {
     /**
      * @brief The signed distance pair between the two geometries.
      */
-    drake::geometry::SignedDistancePair<T> signed_distance_pair;
+    T distance;
+    Eigen::Vector3<T> nhat_BA_W;
     /**
      * @brief The FrameId of the first frame.
      */
@@ -216,6 +239,116 @@ class GeomGeomCollider {
       Eigen::Matrix<double, Eigen::Dynamic, 3> force_basis,
       drake::multibody::JacobianWrtVariable wrt,
       const drake::math::RotationMatrix<T>& R_WC);
+
+  /**
+   * @brief Computes the force basis for a polytope approximation of a friction
+   * cone.
+   *
+   * This function calculates a set of vectors that define the
+   * directions along which contact forces can be applied. These vectors are
+   * used to approximate a friction cone as a polytope. The number of vectors
+   * determines the fidelity of the approximation.
+   *
+   * @param num_friction_directions The number of friction directions to use in
+   *        the polytope approximation. This value determines the number of
+   *        edges in the polytope and must be greater than 1.
+   *
+   * @return A matrix whose columns form  basis vectors for the
+   *         contact forces. The first column is the contact normal, and the
+   *         remaining columns are tangent vectors that define the edges of the
+   *         polytope.
+   */
+  Eigen::Matrix<double, Eigen::Dynamic, 3> ComputePolytopeForceBasis(
+      const int num_friction_directions) const;
+
+  /**
+   * @brief Computes the force basis for a 2D planar problem.
+   *
+   * Given a contact normal and a planar normal, this function computes an
+   * orthonormal basis for the contact forces in the 2D plane.
+   *
+   * @param contact_normal The normal vector to the contact surface.
+   * @param planar_normal The normal vector to the planar system, defining the
+   *        plane in which the system operates.
+   * @return A 3x3 matrix whose columns form an orthonormal basis for the
+   *         contact forces.
+   */
+  Eigen::Matrix3d ComputePlanarForceBasis(
+      const Eigen::Vector3d& contact_normal,
+      const Eigen::Vector3d& planar_normal) const;
+
+  /**
+   * @brief Gets the geometry query result.
+   *
+   * This function queries the MultibodyPlant for the signed distance and
+   * closest points between the two geometries.
+   *
+   * @param context The context for the MultibodyPlant.
+   * @return A GeometryQueryResult struct containing the results of the query.
+   */
+  GeometryQueryResult GetGeometryQueryResult(
+      const drake::systems::Context<T>& context) const;
+
+  /**
+   * @brief Determines if the geometry pair consists of a sphere and a mesh.
+   *
+   * This method inspects the two geometries in the collider pair to identify
+   * whether one is a sphere and the other is a mesh (in either order). This
+   * classification is used to select the appropriate distance computation
+   * algorithm.
+   *
+   * @param inspector The SceneGraphInspector providing access to geometry
+   *                  shape information.
+   * @return true if one geometry is a sphere and the other is a mesh,
+   *         false otherwise.
+   */
+  bool IsSphereAndMesh(
+      const drake::geometry::SceneGraphInspector<T>& inspector) const;
+
+  /**
+   * @brief Computes collision information for sphere-mesh geometry pairs.
+   *
+   * This method provides specialized collision detection for sphere-mesh
+   * pairs that can handle non-convex meshes. This implementation uses
+   * ComputeSignedDistanceGeometryToPoint to accurately compute distances from a
+   * point to any mesh (convex or concave).
+   *
+   * The method determines which geometry is the sphere and which is the mesh,
+   * computes the sphere's world-frame center, finds the closest point on the
+   * mesh surface, and calculates the resulting contact information.
+   *
+   * @param context The context for the MultibodyPlant.
+   * @param[out] p_ACa Contact point on geometry A expressed in frame A.
+   * @param[out] p_BCb Contact point on geometry B expressed in frame B.
+   * @param[out] distance Signed distance between the geometries (negative
+   *                      indicates penetration).
+   * @param[out] nhat_BA_W Unit normal vector pointing from geometry B to
+   *                       geometry A, expressed in world frame.
+   */
+  void ComputeSphereMeshDistance(const drake::systems::Context<T>& context,
+                                 Eigen::Vector3d& p_ACa, Eigen::Vector3d& p_BCb,
+                                 T& distance, Eigen::Vector3d& nhat_BA_W) const;
+
+  /**
+   * @brief Computes collision information for general geometry pairs.
+   *
+   * This method handles collision detection for arbitrary geometry pairs
+   * using Drake's standard ComputeSignedDistancePairClosestPoints algorithm.
+   * It works reliably for convex geometries and convex hulls of meshes, but
+   * may not provide accurate results for non-convex mesh surfaces.
+   *
+   * @param context The context for the MultibodyPlant.
+   * @param[out] p_ACa Contact point on geometry A expressed in frame A.
+   * @param[out] p_BCb Contact point on geometry B expressed in frame B.
+   * @param[out] distance Signed distance between the geometries (negative
+   *                      indicates penetration).
+   * @param[out] nhat_BA_W Unit normal vector pointing from geometry B to
+   *                       geometry A, expressed in world frame.
+   */
+  void ComputeGeneralGeometryDistance(const drake::systems::Context<T>& context,
+                                      Eigen::Vector3d& p_ACa,
+                                      Eigen::Vector3d& p_BCb, T& distance,
+                                      Eigen::Vector3d& nhat_BA_W) const;
 
   /**
    * @brief A reference to the MultibodyPlant containing the geometries.

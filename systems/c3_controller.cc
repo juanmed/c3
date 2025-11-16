@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 
 #include "core/c3_miqp.h"
+#include "core/c3_plus.h"
 #include "core/c3_qp.h"
 #include "multibody/lcs_factory.h"
 
@@ -84,6 +85,10 @@ C3Controller::C3Controller(
   } else if (controller_options_.projection_type == "QP") {
     c3_ = std::make_unique<C3QP>(lcs_placeholder, costs, x_desired_placeholder,
                                  controller_options_.c3_options);
+  } else if (controller_options_.projection_type == "C3+") {
+    c3_ =
+        std::make_unique<C3Plus>(lcs_placeholder, costs, x_desired_placeholder,
+                                 controller_options_.c3_options);
   } else {
     drake::log()->error("Unknown projection type : {}",
                         controller_options_.projection_type);
@@ -108,8 +113,7 @@ C3Controller::C3Controller(
           .get_index();
   c3_intermediates_port_ =
       this->DeclareAbstractOutputPort(
-              "intermediates",
-              C3Output::C3Intermediates(n_x_, n_lambda_, n_u_, N_),
+              "intermediates", C3Output::C3Intermediates(c3_->GetZSize(), N_),
               &C3Controller::OutputC3Intermediates)
           .get_index();
 

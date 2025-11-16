@@ -46,6 +46,19 @@ inline const std::map<std::string, ContactModel>& GetContactModelMap() {
   return kContactModelMap;
 }
 
+struct LCSContactDescription {
+  Eigen::Vector3d witness_point_A;  ///< Witness point on geometry A.
+  Eigen::Vector3d witness_point_B;  ///< Witness point on geometry B.
+  Eigen::Vector3d force_basis;      ///< Force basis vector
+  bool is_slack = false;  ///< Indicates if the contact variable associate to
+                          ///< the LCS is a slack variable.
+
+  static LCSContactDescription CreateSlackVariableDescription() {
+    return {Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero(),
+            Eigen::Vector3d::Zero(), true};
+  }
+};
+
 /**
  * @class LCSFactory
  * @brief Factory class for creating Linear Complementarity Systems (LCS) from
@@ -84,16 +97,12 @@ class LCSFactory {
   LCS GenerateLCS();
 
   /**
-   * @brief Computes the contact Jacobian for a given multibody plant and
-   * context.
+   * @brief Finds the witness points for each contact pair.
    *
-   * This method calculates the signed distance values and the contact Jacobians
-   * for normal and tangential forces at the specified contact points.
-   *
-   * @return A pair containing the contact Jacobian matrix and a vector of
-   * contact points.
+   * @return A pair of vectors containing the witness points on each geometry
+   * for each contact pair.
    */
-  std::pair<MatrixXd, std::vector<VectorXd>> GetContactJacobianAndPoints();
+  std::vector<LCSContactDescription> GetContactDescriptions();
 
   /**
    * @brief Updates the state and input vectors in the internal context.
@@ -296,14 +305,6 @@ class LCSFactory {
   void ComputeContactJacobian(VectorXd& phi, MatrixXd& Jn, MatrixXd& Jt);
 
   /**
-   * @brief Finds the witness points for each contact pair.
-   *
-   * @return A pair of vectors containing the witness points on each geometry
-   * for each contact pair.
-   */
-  std::pair<std::vector<VectorXd>, std::vector<VectorXd>> FindWitnessPoints();
-
-  /**
    * @brief Fill in a set of geometries with surface velocity parameters. This
    * will later be used to define the order inputs that correspond to surface
    * velocity.
@@ -323,17 +324,18 @@ class LCSFactory {
   // Configuration options for the LCSFactory
   LCSFactoryOptions options_;
 
+  ContactModel contact_model_;  ///< The contact model being used.
+  int n_contacts_;              ///< Number of contact points.
+  int n_friction_directions_;   ///< Number of friction directions.u
   int n_q_;                     ///< Number of configuration variables.
   int n_v_;                     ///< Number of velocity variables.
   int n_x_;                     ///< Number of state variables.
   int n_lambda_;                ///< Number of contact force variables.
   int n_u_;                     ///< Number of input variables.
-  int n_contacts_;              ///< Number of contact points.
-  int n_friction_directions_;   ///< Number of friction directions.
-  ContactModel contact_model_;  ///< The contact model being used.
-  std::vector<double> mu_;      ///< Vector of friction coefficients.
-  bool frictionless_;           ///< Flag indicating frictionless contacts.
-  double dt_;                   ///< Time step.
+
+  std::vector<double> mu_;  ///< Vector of friction coefficients.
+  bool frictionless_;       ///< Flag indicating frictionless contacts.
+  double dt_;               ///< Time step.
   int n_b_{0};                  ///< Number of contact velocity biases.
   const drake::geometry::SceneGraphInspector<double>& inspector_;
   std::set<drake::geometry::GeometryId>

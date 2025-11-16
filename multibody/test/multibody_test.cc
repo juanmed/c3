@@ -188,8 +188,7 @@ TEST_P(LCSFactoryPivotingTest, LinearizePlantToLCS) {
 
 TEST_P(LCSFactoryPivotingTest, UpdateStateAndInput) {
   LCS initial_lcs = lcs_factory->GenerateLCS();
-  auto [initial_J, initial_contact_points] =
-      lcs_factory->GetContactJacobianAndPoints();
+  auto initial_contact_descriptions = lcs_factory->GetContactDescriptions();
 
   drake::VectorX<double> state =
       VectorXd::Zero(plant->num_positions() + plant->num_velocities());
@@ -201,8 +200,7 @@ TEST_P(LCSFactoryPivotingTest, UpdateStateAndInput) {
   lcs_factory->UpdateStateAndInput(state, input);
 
   LCS updated_lcs = lcs_factory->GenerateLCS();
-  auto [updated_J, updated_contact_points] =
-      lcs_factory->GetContactJacobianAndPoints();
+  auto updated_contact_descriptions = lcs_factory->GetContactDescriptions();
 
   EXPECT_EQ(initial_lcs.A(), updated_lcs.A());
   EXPECT_EQ(initial_lcs.B(), updated_lcs.B());
@@ -218,33 +216,28 @@ TEST_P(LCSFactoryPivotingTest, UpdateStateAndInput) {
     EXPECT_NE(initial_lcs.c(), updated_lcs.c());
   }
 
-  EXPECT_NE(initial_J, updated_J);
-  for (size_t i = 0; i < initial_contact_points.size(); ++i) {
-    EXPECT_NE(initial_contact_points[i], updated_contact_points[i]);
+  for (size_t i = 0; i < initial_contact_descriptions.size(); ++i) {
+    if (initial_contact_descriptions[i].is_slack) continue;
+    EXPECT_NE(initial_contact_descriptions[i].witness_point_A,
+              updated_contact_descriptions[i].witness_point_A);
+    EXPECT_NE(initial_contact_descriptions[i].witness_point_B,
+              updated_contact_descriptions[i].witness_point_B);
+    EXPECT_NE(initial_contact_descriptions[i].force_basis,
+              updated_contact_descriptions[i].force_basis);
   }
 }
 
-TEST_P(LCSFactoryPivotingTest, ComputeContactJacobian) {
-  auto [J, contact_points] = lcs_factory->GetContactJacobianAndPoints();
+TEST_P(LCSFactoryPivotingTest, GetContactDescriptions) {
+  auto contact_descriptions = lcs_factory->GetContactDescriptions();
 
-  int n_contacts = contact_pairs.size();
-  // Check for number of force variables (not including slack variables)
-  switch (contact_model) {
-    case ContactModel::kStewartAndTrinkle:
-      EXPECT_EQ(J.rows(),
-                n_contacts + 2 * n_contacts * options.num_friction_directions);
-      break;
-    case ContactModel::kFrictionlessSpring:
-      EXPECT_EQ(J.rows(), n_contacts);
-      break;
-    case ContactModel::kAnitescu:
-      EXPECT_EQ(J.rows(), 2 * n_contacts * options.num_friction_directions);
-      break;
-    default:
-      EXPECT_TRUE(false);  // Something went wrong in parsing the contact model
+  int n_contacts = contact_descriptions.size();
+  EXPECT_EQ(LCSFactory::GetNumContactVariables(options), n_contacts);
+  for (size_t i = 0; i < contact_descriptions.size(); ++i) {
+    if (contact_descriptions[i].is_slack) continue;
+    EXPECT_FALSE(contact_descriptions[i].witness_point_A.isZero());
+    EXPECT_FALSE(contact_descriptions[i].witness_point_B.isZero());
+    EXPECT_FALSE(contact_descriptions[i].force_basis.isZero());
   }
-  EXPECT_EQ(J.cols(), plant->num_velocities());
-  EXPECT_EQ(contact_points.size(), n_contacts);
 }
 
 TEST_P(LCSFactoryPivotingTest, FixSomeModes) {

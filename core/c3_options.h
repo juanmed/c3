@@ -1,5 +1,10 @@
 #pragma once
 
+#include <iostream>
+#include <optional.h>
+
+#include <drake/common/yaml/yaml_io_options.h>
+
 #include "drake/common/yaml/yaml_io.h"
 #include "drake/common/yaml/yaml_read_archive.h"
 
@@ -9,6 +14,8 @@ struct C3Options {
   // Hyperparameters
   bool warm_start =
       true;  // Use results of current admm iteration as warm start for next
+  std::optional<bool> penalize_input_change =
+      true;  // Penalize change in input between iterations
   bool end_on_qp_step =
       true;  // If false, Run a half step calculating the state using the LCS
   bool scale_lcs =
@@ -18,7 +25,12 @@ struct C3Options {
   int delta_option =
       1;  // 1 initializes the state value of the delta value with x0
 
-  double M = 1000;  // big M value for MIQP
+  std::optional<double> M = 1000;  // big M value for MIQP
+
+  std::optional<double>
+      qp_projection_alpha;  // alpha value for the QP projection
+  std::optional<double>
+      qp_projection_scaling;  // scaling factor for the QP projection
 
   int admm_iter = 3;  // total number of ADMM iterations
 
@@ -70,6 +82,10 @@ struct C3Options {
   std::vector<double> g_lambda;    // Direct specification of the entire
                                    // λ-block when custom ordering is needed.
   std::vector<double> g_u;         // Weights on plant inputs within z.
+  std::optional<std::vector<double>> g_eta_slack;
+  std::optional<std::vector<double>> g_eta_n;
+  std::optional<std::vector<double>> g_eta_t;
+  std::optional<std::vector<double>> g_eta;
 
   std::vector<double> u_vector;
   std::vector<double> u_x;         // Projection penalty on the plant state x.
@@ -78,10 +94,15 @@ struct C3Options {
   std::vector<double> u_lambda_t;  // Projection penalty on λₜ impulses.
   std::vector<double> u_lambda;    // Direct override for the full λ block.
   std::vector<double> u_u;         // Projection penalty on plant inputs.
+  std::optional<std::vector<double>> u_eta_slack;
+  std::optional<std::vector<double>> u_eta_n;
+  std::optional<std::vector<double>> u_eta_t;
+  std::optional<std::vector<double>> u_eta;
 
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(DRAKE_NVP(warm_start));
+    a->Visit(DRAKE_NVP(penalize_input_change));
     a->Visit(DRAKE_NVP(end_on_qp_step));
     a->Visit(DRAKE_NVP(scale_lcs));
 
@@ -89,6 +110,8 @@ struct C3Options {
     a->Visit(DRAKE_NVP(delta_option));
 
     a->Visit(DRAKE_NVP(M));
+    a->Visit(DRAKE_NVP(qp_projection_alpha));
+    a->Visit(DRAKE_NVP(qp_projection_scaling));
 
     a->Visit(DRAKE_NVP(admm_iter));
 
@@ -107,12 +130,20 @@ struct C3Options {
     a->Visit(DRAKE_NVP(g_lambda_t));
     a->Visit(DRAKE_NVP(g_lambda));
     a->Visit(DRAKE_NVP(g_u));
+    a->Visit(DRAKE_NVP(g_eta_slack));
+    a->Visit(DRAKE_NVP(g_eta_n));
+    a->Visit(DRAKE_NVP(g_eta_t));
+    a->Visit(DRAKE_NVP(g_eta));
     a->Visit(DRAKE_NVP(u_x));
     a->Visit(DRAKE_NVP(u_gamma));
     a->Visit(DRAKE_NVP(u_lambda_n));
     a->Visit(DRAKE_NVP(u_lambda_t));
     a->Visit(DRAKE_NVP(u_lambda));
     a->Visit(DRAKE_NVP(u_u));
+    a->Visit(DRAKE_NVP(u_eta_slack));
+    a->Visit(DRAKE_NVP(u_eta_n));
+    a->Visit(DRAKE_NVP(u_eta_t));
+    a->Visit(DRAKE_NVP(u_eta));
 
     g_vector = std::vector<double>();
     g_vector.insert(g_vector.end(), g_x.begin(), g_x.end());
@@ -125,6 +156,14 @@ struct C3Options {
     }
     g_vector.insert(g_vector.end(), g_lambda.begin(), g_lambda.end());
     g_vector.insert(g_vector.end(), g_u.begin(), g_u.end());
+    g_eta_vector = g_eta.value_or(std::vector<double>());
+    if (g_eta_vector.empty() && g_eta_slack.has_value()) {
+      g_eta_vector.insert(g_eta_vector.end(), g_eta_slack->begin(),
+                          g_eta_slack->end());
+      g_eta_vector.insert(g_eta_vector.end(), g_eta_n->begin(), g_eta_n->end());
+      g_eta_vector.insert(g_eta_vector.end(), g_eta_t->begin(), g_eta_t->end());
+    }
+    g_vector.insert(g_vector.end(), g_eta_vector.begin(), g_eta_vector.end());
 
     u_vector = std::vector<double>();
     u_vector.insert(u_vector.end(), u_x.begin(), u_x.end());
@@ -137,6 +176,14 @@ struct C3Options {
     }
     u_vector.insert(u_vector.end(), u_lambda.begin(), u_lambda.end());
     u_vector.insert(u_vector.end(), u_u.begin(), u_u.end());
+    u_eta_vector = u_eta.value_or(std::vector<double>());
+    if (u_eta_vector.empty() && u_eta_slack.has_value()) {
+      u_eta_vector.insert(u_eta_vector.end(), u_eta_slack->begin(),
+                          u_eta_slack->end());
+      u_eta_vector.insert(u_eta_vector.end(), u_eta_n->begin(), u_eta_n->end());
+      u_eta_vector.insert(u_eta_vector.end(), u_eta_t->begin(), u_eta_t->end());
+    }
+    u_vector.insert(u_vector.end(), u_eta_vector.begin(), u_eta_vector.end());
 
     Eigen::VectorXd q = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(
         this->q_vector.data(), this->q_vector.size());
@@ -147,8 +194,6 @@ struct C3Options {
     Eigen::VectorXd u = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(
         this->u_vector.data(), this->u_vector.size());
 
-    DRAKE_DEMAND(g.size() == u.size());
-
     Q = w_Q * q.asDiagonal();
     R = w_R * r.asDiagonal();
     G = w_G * g.asDiagonal();
@@ -157,7 +202,11 @@ struct C3Options {
 };
 
 inline C3Options LoadC3Options(const std::string& filename) {
-  auto options = drake::yaml::LoadYamlFile<C3Options>(filename);
+  auto options = drake::yaml::LoadYamlFile<C3Options>(
+      filename, std::nullopt, std::nullopt,
+      drake::yaml::LoadYamlOptions{.allow_yaml_with_no_cpp = false,
+                                   .allow_cpp_with_no_yaml = true,
+                                   .retain_map_defaults = false});
   return options;
 }
 

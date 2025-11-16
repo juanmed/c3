@@ -13,6 +13,8 @@
 namespace c3 {
 typedef drake::solvers::Binding<drake::solvers::LinearConstraint>
     LinearConstraintBinding;
+typedef drake::solvers::Binding<drake::solvers::QuadraticCost>
+    QuadraticCostBinding;
 
 enum ConstraintVariable : uint8_t { STATE = 1, INPUT = 2, FORCE = 3 };
 
@@ -72,7 +74,7 @@ class C3 {
    * Update the dynamics
    * @param lcs the new LCS
    */
-  void UpdateLCS(const LCS& lcs);
+  virtual void UpdateLCS(const LCS& lcs);
 
   /**
    * @brief Get a vector dynamic constraints.
@@ -188,13 +190,32 @@ class C3 {
   }
 
   std::vector<Eigen::VectorXd> GetFullSolution() { return *z_sol_; }
+  std::vector<Eigen::VectorXd> GetFullQPSolution() { return *z_fin_; }
   std::vector<Eigen::VectorXd> GetStateSolution() { return *x_sol_; }
   std::vector<Eigen::VectorXd> GetForceSolution() { return *lambda_sol_; }
   std::vector<Eigen::VectorXd> GetInputSolution() { return *u_sol_; }
   std::vector<Eigen::VectorXd> GetDualDeltaSolution() { return *delta_sol_; }
   std::vector<Eigen::VectorXd> GetDualWSolution() { return *w_sol_; }
 
+  int GetZSize() const { return n_z_; }
+
  protected:
+  /// @param lcs      Parameters defining the LCS.
+  /// @param costs    Cost matrices used in the optimization.
+  /// @param x_des    Desired goal state trajectory.
+  /// @param options  Options specific to the C3 formulation.
+  /// @param z_size   Size of the z vector, which depends on the specific C3
+  /// variant.
+  ///                 For example:
+  ///                   - C3MIQP / C3QP: z = [x, u, lambda]
+  ///                   - C3Plus:        z = [x, u, lambda, eta]
+  ///
+  /// This constructor is intended for internal use only. The public constructor
+  /// delegates to this one, passing in an explicitly computed z vector size.
+  C3(const LCS& lcs, const CostMatrices& costs,
+     const std::vector<Eigen::VectorXd>& x_des, const C3Options& options,
+     int z_size);
+
   std::vector<std::vector<Eigen::VectorXd>> warm_start_delta_;
   std::vector<std::vector<Eigen::VectorXd>> warm_start_binary_;
   std::vector<std::vector<Eigen::VectorXd>> warm_start_x_;
@@ -205,6 +226,9 @@ class C3 {
   const int n_x_;       // n
   const int n_lambda_;  // m
   const int n_u_;       // k
+  const int n_z_;       // (default) n + m + k
+
+  bool use_parallelization_in_projection_ = true;
 
   /*!
    * Project delta_c onto the LCP constraint.
@@ -213,7 +237,8 @@ class C3 {
    * @param delta_c value to project to the LCP constraint
    * @param E, F, H, c LCS state, force, input, and constant terms
    * @param admm_iteration index of the current ADMM iteration
-   * @param warm_start_index index into cache of warm start variables
+   * @param warm_start_index index into cache of warm start variables, -1 for no
+   * warm start
    * @return
    */
   virtual Eigen::VectorXd SolveSingleProjection(
@@ -222,12 +247,21 @@ class C3 {
       const Eigen::MatrixXd& H, const Eigen::VectorXd& c,
       const int admm_iteration, const int& warm_start_index) = 0;
 
- private:
+  virtual void SetInitialGuessQP(const Eigen::VectorXd& x0, int admm_iteration);
+  virtual void StoreQPResults(
+      const drake::solvers::MathematicalProgramResult& result,
+      int admm_iteration, bool is_final_solve);
   /*!
    * Scales the LCS matrices internally to better condition the problem.
    * This only scales the lambdas.
    */
   void ScaleLCS();
+
+  /*!
+   * Set the default solver options for the MathematicalProgram
+   * This is called in the constructor, and can be overridden by the user
+   */
+  void SetDefaultSolverOptions();
 
   /*!
    * Solve the projection problem for all time-steps
@@ -279,6 +313,7 @@ class C3 {
   std::vector<drake::solvers::VectorXDecisionVariable> x_;
   std::vector<drake::solvers::VectorXDecisionVariable> u_;
   std::vector<drake::solvers::VectorXDecisionVariable> lambda_;
+  std::vector<drake::solvers::VariableRefList> z_;
 
   // QP step constraints
   std::shared_ptr<drake::solvers::LinearEqualityConstraint>
@@ -291,8 +326,8 @@ class C3 {
   /// Projection step variables are defined outside of the MathematicalProgram
   /// interface
 
-  std::vector<drake::solvers::QuadraticCost*> target_cost_;
-  std::vector<drake::solvers::Binding<drake::solvers::QuadraticCost>> costs_;
+  std::vector<drake::solvers::QuadraticCost*> target_costs_;
+  std::vector<std::shared_ptr<drake::solvers::QuadraticCost>> augmented_costs_;
   std::vector<std::shared_ptr<drake::solvers::QuadraticCost>> input_costs_;
 
   // Solutions
@@ -301,6 +336,9 @@ class C3 {
   std::unique_ptr<std::vector<Eigen::VectorXd>> u_sol_;
 
   std::unique_ptr<std::vector<Eigen::VectorXd>> z_sol_;
+  std::unique_ptr<std::vector<Eigen::VectorXd>>
+      z_fin_;  // Final QP solution which may differ from z_sol_ if
+               // end_on_qp_step is false
   std::unique_ptr<std::vector<Eigen::VectorXd>> delta_sol_;
   std::unique_ptr<std::vector<Eigen::VectorXd>> w_sol_;
 };
