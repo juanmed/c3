@@ -336,7 +336,7 @@ class LCSFactory {
   std::vector<double> mu_;  ///< Vector of friction coefficients.
   bool frictionless_;       ///< Flag indicating frictionless contacts.
   double dt_;               ///< Time step.
-  int n_b_{0};                  ///< Number of contact velocity biases.
+  int n_b_{0};              ///< Number of contact velocity biases.
   const drake::geometry::SceneGraphInspector<double>& inspector_;
   std::set<drake::geometry::GeometryId>
       geoms_with_surface_velocity_;  ///< Geometries with surface velocity

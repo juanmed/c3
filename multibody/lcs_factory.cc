@@ -349,12 +349,12 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
             query_port.GetPoseInWorld(geom_a).rotation().matrix();
 
         int idx = std::distance(geoms_with_surface_velocity_.begin(), iter);
-        Eigen::Vector3d sv =
-            plant_
-                .GetSurfaceVelocityDirection(context_, geom_a, inspector_,
-                                    drake::math::RigidTransformd::Identity(),
-                                    query_result.signed_distance_pair.p_ACa)
-                .normalized();
+        Eigen::Vector3d sv = plant_
+                                 .GetSurfaceVelocityDirection(
+                                     context_, geom_a, inspector_,
+                                     drake::math::RigidTransformd::Identity(),
+                                     query_result.signed_distance_pair.p_ACa)
+                                 .normalized();
         double n_J_a = fb.row(0) * R_WC * R_C * X_WG * sv;
         Eigen::VectorXd t_J_a = fb.block(1, 0, 2 * n_friction_directions_, 3) *
                                 R_WC * R_C * X_WG * sv;
@@ -369,12 +369,12 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
         const Eigen::Matrix3d& X_WG =
             query_port.GetPoseInWorld(geom_b).rotation().matrix();
 
-        Eigen::Vector3d sv =
-            plant_
-                .GetSurfaceVelocityDirection(context_, geom_b, inspector_,
-                                    drake::math::RigidTransformd::Identity(),
-                                    query_result.signed_distance_pair.p_BCb)
-                .normalized();
+        Eigen::Vector3d sv = plant_
+                                 .GetSurfaceVelocityDirection(
+                                     context_, geom_b, inspector_,
+                                     drake::math::RigidTransformd::Identity(),
+                                     query_result.signed_distance_pair.p_BCb)
+                                 .normalized();
         double n_J_b = fb.row(0) * R_WC * R_C * X_WG * sv;
         Eigen::VectorXd t_J_b = fb.block(1, 0, 2 * n_friction_directions_, 3) *
                                 R_WC * R_C * X_WG * sv;
@@ -487,12 +487,12 @@ void LCSFactory::FormulateAnitescuContactDynamics(
 
         // Query surface velocity and normalize to obtain the surface velocity
         // vector only.
-        Eigen::Vector3d sv =
-            plant_
-                .GetSurfaceVelocityDirection(context_, geom_a, inspector_,
-                                    drake::math::RigidTransformd::Identity(),
-                                    query_result.signed_distance_pair.p_ACa)
-                .normalized();
+        Eigen::Vector3d sv = plant_
+                                 .GetSurfaceVelocityDirection(
+                                     context_, geom_a, inspector_,
+                                     drake::math::RigidTransformd::Identity(),
+                                     query_result.signed_distance_pair.p_ACa)
+                                 .normalized();
         // Build jacobians and add to control matrix H.
         Eigen::VectorXd n_J_a = Ek * fb.row(0) * R_WC * R_C * X_WG * sv;
         Eigen::VectorXd t_J_a = fb.block(1, 0, 2 * n_friction_directions_, 3) *
@@ -508,12 +508,12 @@ void LCSFactory::FormulateAnitescuContactDynamics(
         // Pose of geometry in world frame
         const Eigen::Matrix3d& X_WG =
             query_port.GetPoseInWorld(geom_b).rotation().matrix();
-        Eigen::Vector3d sv =
-            plant_
-                .GetSurfaceVelocityDirection(context_, geom_b, inspector_,
-                                    drake::math::RigidTransformd::Identity(),
-                                    query_result.signed_distance_pair.p_BCb)
-                .normalized();
+        Eigen::Vector3d sv = plant_
+                                 .GetSurfaceVelocityDirection(
+                                     context_, geom_b, inspector_,
+                                     drake::math::RigidTransformd::Identity(),
+                                     query_result.signed_distance_pair.p_BCb)
+                                 .normalized();
         Eigen::VectorXd n_J_b = Ek * fb.row(0) * R_WC * R_C * X_WG * sv;
         Eigen::VectorXd t_J_b = fb.block(1, 0, 2 * n_friction_directions_, 3) *
                                 R_WC * R_C * X_WG * sv;

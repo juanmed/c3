@@ -1,9 +1,9 @@
 #pragma once
 
 #include <iostream>
-#include <optional.h>
 
 #include <drake/common/yaml/yaml_io_options.h>
+#include <optional>
 
 #include "drake/common/yaml/yaml_io.h"
 #include "drake/common/yaml/yaml_read_archive.h"
@@ -82,6 +82,7 @@ struct C3Options {
   std::vector<double> g_lambda;    // Direct specification of the entire
                                    // λ-block when custom ordering is needed.
   std::vector<double> g_u;         // Weights on plant inputs within z.
+  std::vector<double> g_eta_vector;
   std::optional<std::vector<double>> g_eta_slack;
   std::optional<std::vector<double>> g_eta_n;
   std::optional<std::vector<double>> g_eta_t;
@@ -94,6 +95,7 @@ struct C3Options {
   std::vector<double> u_lambda_t;  // Projection penalty on λₜ impulses.
   std::vector<double> u_lambda;    // Direct override for the full λ block.
   std::vector<double> u_u;         // Projection penalty on plant inputs.
+  std::vector<double> u_eta_vector;
   std::optional<std::vector<double>> u_eta_slack;
   std::optional<std::vector<double>> u_eta_n;
   std::optional<std::vector<double>> u_eta_t;

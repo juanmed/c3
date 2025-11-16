@@ -171,6 +171,10 @@ class GeomGeomCollider {
     /**
      * @brief The signed distance pair between the two geometries.
      */
+    drake::geometry::SignedDistancePair<T> signed_distance_pair;
+    /**
+     * @brief The signed distance pair between the two geometries.
+     */
     T distance;
     Eigen::Vector3<T> nhat_BA_W;
     /**
@@ -241,55 +245,6 @@ class GeomGeomCollider {
       const drake::math::RotationMatrix<T>& R_WC);
 
   /**
-   * @brief Computes the force basis for a polytope approximation of a friction
-   * cone.
-   *
-   * This function calculates a set of vectors that define the
-   * directions along which contact forces can be applied. These vectors are
-   * used to approximate a friction cone as a polytope. The number of vectors
-   * determines the fidelity of the approximation.
-   *
-   * @param num_friction_directions The number of friction directions to use in
-   *        the polytope approximation. This value determines the number of
-   *        edges in the polytope and must be greater than 1.
-   *
-   * @return A matrix whose columns form  basis vectors for the
-   *         contact forces. The first column is the contact normal, and the
-   *         remaining columns are tangent vectors that define the edges of the
-   *         polytope.
-   */
-  Eigen::Matrix<double, Eigen::Dynamic, 3> ComputePolytopeForceBasis(
-      const int num_friction_directions) const;
-
-  /**
-   * @brief Computes the force basis for a 2D planar problem.
-   *
-   * Given a contact normal and a planar normal, this function computes an
-   * orthonormal basis for the contact forces in the 2D plane.
-   *
-   * @param contact_normal The normal vector to the contact surface.
-   * @param planar_normal The normal vector to the planar system, defining the
-   *        plane in which the system operates.
-   * @return A 3x3 matrix whose columns form an orthonormal basis for the
-   *         contact forces.
-   */
-  Eigen::Matrix3d ComputePlanarForceBasis(
-      const Eigen::Vector3d& contact_normal,
-      const Eigen::Vector3d& planar_normal) const;
-
-  /**
-   * @brief Gets the geometry query result.
-   *
-   * This function queries the MultibodyPlant for the signed distance and
-   * closest points between the two geometries.
-   *
-   * @param context The context for the MultibodyPlant.
-   * @return A GeometryQueryResult struct containing the results of the query.
-   */
-  GeometryQueryResult GetGeometryQueryResult(
-      const drake::systems::Context<T>& context) const;
-
-  /**
    * @brief Determines if the geometry pair consists of a sphere and a mesh.
    *
    * This method inspects the two geometries in the collider pair to identify
@@ -325,9 +280,10 @@ class GeomGeomCollider {
    * @param[out] nhat_BA_W Unit normal vector pointing from geometry B to
    *                       geometry A, expressed in world frame.
    */
-  void ComputeSphereMeshDistance(const drake::systems::Context<T>& context,
-                                 Eigen::Vector3d& p_ACa, Eigen::Vector3d& p_BCb,
-                                 T& distance, Eigen::Vector3d& nhat_BA_W) const;
+  void ComputeSphereMeshDistance(
+      const drake::systems::Context<T>& context, Eigen::Vector3d& p_ACa,
+      Eigen::Vector3d& p_BCb, T& distance, Eigen::Vector3d& nhat_BA_W,
+      drake::geometry::SignedDistancePair<T>& sdf) const;
 
   /**
    * @brief Computes collision information for general geometry pairs.
@@ -345,10 +301,10 @@ class GeomGeomCollider {
    * @param[out] nhat_BA_W Unit normal vector pointing from geometry B to
    *                       geometry A, expressed in world frame.
    */
-  void ComputeGeneralGeometryDistance(const drake::systems::Context<T>& context,
-                                      Eigen::Vector3d& p_ACa,
-                                      Eigen::Vector3d& p_BCb, T& distance,
-                                      Eigen::Vector3d& nhat_BA_W) const;
+  void ComputeGeneralGeometryDistance(
+      const drake::systems::Context<T>& context, Eigen::Vector3d& p_ACa,
+      Eigen::Vector3d& p_BCb, T& distance, Eigen::Vector3d& nhat_BA_W,
+      drake::geometry::SignedDistancePair<T>& sdf) const;
 
   /**
    * @brief A reference to the MultibodyPlant containing the geometries.

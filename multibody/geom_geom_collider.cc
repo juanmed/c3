@@ -42,11 +42,9 @@ bool GeomGeomCollider<T>::IsSphereAndMesh(
 
 // Computes collision information between a sphere and a mesh.
 template <typename T>
-void GeomGeomCollider<T>::ComputeSphereMeshDistance(const Context<T>& context,
-                                                    Vector3d& p_ACa,
-                                                    Vector3d& p_BCb,
-                                                    T& distance,
-                                                    Vector3d& nhat_BA_W) const {
+void GeomGeomCollider<T>::ComputeSphereMeshDistance(
+    const Context<T>& context, Vector3d& p_ACa, Vector3d& p_BCb, T& distance,
+    Vector3d& nhat_BA_W, SignedDistancePair<T>& sdp) const {
   // Access the geometry query object from the plant's geometry query port.
   const auto& query_port = plant_.get_geometry_query_input_port();
   const auto& query_object = query_port.template Eval<QueryObject<T>>(context);
@@ -96,13 +94,15 @@ void GeomGeomCollider<T>::ComputeSphereMeshDistance(const Context<T>& context,
             sd_to_point.p_GN;
     p_ACa = X_FS.template cast<T>() * (-1 * sphere_radius * nhat_BA_W);
   }
+  sdp = SignedDistancePair<T>(geometry_id_A_, geometry_id_B_, p_ACa, p_BCb,
+                              distance, nhat_BA_W);
 }
 
 // Computes collision information for general geometry pairs (non-sphere-mesh).
 template <typename T>
 void GeomGeomCollider<T>::ComputeGeneralGeometryDistance(
     const Context<T>& context, Vector3d& p_ACa, Vector3d& p_BCb, T& distance,
-    Vector3d& nhat_BA_W) const {
+    Vector3d& nhat_BA_W, SignedDistancePair<T>& sdp) const {
   // Access the geometry query object from the plant's geometry query port.
   const auto& query_port = plant_.get_geometry_query_input_port();
   const auto& query_object = query_port.template Eval<QueryObject<T>>(context);
@@ -119,6 +119,7 @@ void GeomGeomCollider<T>::ComputeGeneralGeometryDistance(
           signed_distance_pair.p_ACa;
   p_BCb = inspector.GetPoseInFrame(geometry_id_B_).template cast<T>() *
           signed_distance_pair.p_BCb;
+  sdp = signed_distance_pair;
 }
 
 // Computes and returns all relevant geometry query results for the collider
@@ -142,14 +143,17 @@ GeomGeomCollider<T>::GetGeometryQueryResult(const Context<T>& context) const {
   // Compute distance and contact points.
   T distance;
   Vector3d nhat_BA_W, p_ACa, p_BCb;
+  SignedDistancePair<T> sdp;
   if (IsSphereAndMesh(inspector)) {
-    ComputeSphereMeshDistance(context, p_ACa, p_BCb, distance, nhat_BA_W);
+    ComputeSphereMeshDistance(context, p_ACa, p_BCb, distance, nhat_BA_W, sdp);
   } else {
-    ComputeGeneralGeometryDistance(context, p_ACa, p_BCb, distance, nhat_BA_W);
+    ComputeGeneralGeometryDistance(context, p_ACa, p_BCb, distance, nhat_BA_W,
+                                   sdp);
   }
 
-  return GeometryQueryResult{distance, nhat_BA_W, frame_A_id, frame_B_id,
-                             frameA,   frameB,    p_ACa,      p_BCb};
+  return GeometryQueryResult{sdp,        distance,   nhat_BA_W,
+                             frame_A_id, frame_B_id, frameA,
+                             frameB,     p_ACa,      p_BCb};
 }
 
 template <typename T>
