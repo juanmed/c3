@@ -57,6 +57,24 @@ py_binary(
         ":c3_example",
     ],
     data = [
-        "//examples:example_data"
+        "//examples:example_data",
+        "//core:default_solver_options",
+    ],
+)
+
+py_binary(
+    name = "ray_optimize",
+    srcs = [
+        "ray_optimize.py",
+        "surface_velocity.py",
+        "common_systems.py",
+    ],
+    deps = [
+        "//bindings/pyc3:pyc3",
+        ":c3_example",
+    ],
+    data = [
+        "//examples:example_data",
+        "//core:default_solver_options",
     ],
 )
