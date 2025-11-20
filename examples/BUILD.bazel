@@ -71,3 +71,18 @@ cc_binary(
       ":example_data"
     ]
 )
+
+cc_binary(
+    name = "conveyor_belt_tool",
+    srcs = [
+      "conveyor_belt_tool.cc",
+      "common_systems.hpp",
+    ],
+    deps = [
+      "@gflags",
+      "@drake//:drake_shared_library"
+    ],
+    data = [
+      ":example_data"
+    ]
+)
