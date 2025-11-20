@@ -79,6 +79,10 @@ cc_binary(
       "common_systems.hpp",
     ],
     deps = [
+      "//core:c3",
+      "//multibody:lcs_factory",
+      "//systems:systems",
+      "//systems:system_utils",
       "@gflags",
       "@drake//:drake_shared_library"
     ],
