@@ -2,6 +2,9 @@
 #include <memory>
 #include <string>
 
+#include <drake/systems/primitives/constant_value_source.h>
+#include <drake/systems/primitives/constant_vector_source.h>
+#include <drake/systems/primitives/zero_order_hold.h>
 #include <gflags/gflags.h>
 
 #include "core/c3.h"
@@ -11,12 +14,19 @@
 #include "systems/lcs_factory_system.h"
 #include "systems/lcs_simulator.h"
 
+#include "drake/common/proto/call_python.h"
+#include "drake/geometry/meshcat.h"
+#include "drake/geometry/meshcat_visualizer.h"
 #include "drake/geometry/scene_graph.h"
+#include "drake/multibody/meshcat/contact_visualizer.h"
 #include "drake/multibody/parsing/parser.h"
 #include "drake/multibody/plant/multibody_plant.h"
 #include "drake/multibody/plant/multibody_plant_config.h"
 #include "drake/multibody/plant/multibody_plant_config_functions.h"
+#include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram_builder.h"
+#include "drake/systems/primitives/demultiplexer.h"
+#include "drake/systems/primitives/vector_log_sink.h"
 
 struct ConveyorSystem {
   std::unique_ptr<drake::systems::DiagramBuilder<double>> builder;
@@ -112,6 +122,157 @@ int conveyor_belt_tool() {
       conveyor_sim.builder->AddSystem<c3::systems::LCSFactorySystem>(
           *conveyor_lcs.plant, plant_for_lcs_context, *plant_autodiff,
           *plant_context_autodiff, contact_pairs, options.lcs_factory_options);
+
+  // Add the C3 controller.
+  c3::C3::CostMatrices cost = c3::C3::CreateCostMatricesFromC3Options(
+      options.c3_options, options.lcs_factory_options.N);
+  auto c3_controller =
+      conveyor_sim.builder->AddSystem<c3::systems::C3Controller>(
+          *conveyor_lcs.plant, cost, options,
+          lcs_factory_system->GetNumContactVelocityBiases());
+  c3_controller->set_name("c3_controller");
+
+  // Add a constant vector source for the desired state.
+  Eigen::VectorXd xd(18);
+  xd << 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+  auto xdes = conveyor_sim.builder
+                  ->AddSystem<drake::systems::ConstantVectorSource<double>>(xd);
+
+  // Add a vector-to-timestamped-vector converter.
+  auto vector_to_timestamped_vector =
+      conveyor_sim.builder->AddSystem<Vector2TimestampedVector>(18);
+
+  // sim plant -> timestamped vector -> c3 controller
+  conveyor_sim.builder->Connect(
+      conveyor_sim.plant->get_state_output_port(),
+      vector_to_timestamped_vector->get_input_port_state());
+  conveyor_sim.builder->Connect(
+      vector_to_timestamped_vector->get_output_port_timestamped_state(),
+      c3_controller->get_input_port_lcs_state());
+
+  // lcs factory system -> c3 controller's LCS input
+  // x_des -> c3 controller's x_des input
+  conveyor_sim.builder->Connect(lcs_factory_system->get_output_port_lcs(),
+                                c3_controller->get_input_port_lcs());
+  conveyor_sim.builder->Connect(xdes->get_output_port(),
+                                c3_controller->get_input_port_target());
+
+  // c3 controller's output -> plant inputs (actuators and surface velocity)
+  auto c3_input = conveyor_sim.builder->AddSystem<C3Solution2Input>(6);
+  conveyor_sim.builder->Connect(c3_controller->get_output_port_c3_solution(),
+                                c3_input->get_input_port_c3_solution());
+  const std::vector<int> state_demux_sizes = {5, 1};
+  auto input_demux =
+      conveyor_sim.builder->AddSystem<drake::systems::Demultiplexer>(
+          state_demux_sizes);
+  conveyor_sim.builder->Connect(c3_input->get_output_port_c3_input(),
+                                input_demux->get_input_port());
+  conveyor_sim.builder->Connect(input_demux->get_output_port(0),
+                                conveyor_sim.plant->get_actuation_input_port());
+  const drake::geometry::GeometryId geom_id =
+      conveyor_sim.plant
+          ->GetCollisionGeometriesForBody(
+              conveyor_sim.plant->GetBodyByName("conveyor_belt_tool"))
+          .at(0);
+  conveyor_sim.builder->Connect(
+      input_demux->get_output_port(1),
+      conveyor_sim.plant->get_surface_speed_input_port(geom_id).value().get());
+
+  // Add a ZeroOrderHold system for state updates.
+  auto input_zero_order_hold =
+      conveyor_sim.builder->AddSystem<drake::systems::ZeroOrderHold<double>>(
+          1 / options.publish_frequency, 6);
+  conveyor_sim.builder->Connect(c3_input->get_output_port_c3_input(),
+                                input_zero_order_hold->get_input_port());
+  conveyor_sim.builder->Connect(
+      vector_to_timestamped_vector->get_output_port_timestamped_state(),
+      lcs_factory_system->get_input_port_lcs_state());
+  conveyor_sim.builder->Connect(input_zero_order_hold->get_output_port(),
+                                lcs_factory_system->get_input_port_lcs_input());
+
+  // Set up visualization
+  auto meshcat = std::make_shared<drake::geometry::Meshcat>();
+  drake::geometry::MeshcatVisualizer<double>::AddToBuilder(
+      conveyor_sim.builder.get(), *conveyor_sim.scene_graph, meshcat);
+  drake::geometry::MeshcatVisualizerParams meshcat_params;
+  meshcat_params.delete_on_initialization_event = false;
+  auto& visualizer = drake::geometry::MeshcatVisualizerd::AddToBuilder(
+      conveyor_sim.builder.get(), *conveyor_sim.scene_graph, meshcat,
+      std::move(meshcat_params));
+  drake::multibody::meshcat::ContactVisualizerParams cparams;
+  cparams.newtons_per_meter = 60.0;
+  drake::multibody::meshcat::ContactVisualizerd::AddToBuilder(
+      conveyor_sim.builder.get(), *conveyor_sim.plant, meshcat,
+      std::move(cparams));
+
+  // Setup state, input desired state loggers
+  auto u_logger = drake::systems::LogVectorOutput(
+      c3_input->get_output_port_c3_input(), conveyor_sim.builder.get());
+  u_logger->set_name("u_logger");
+  auto sim_state_logger = drake::systems::LogVectorOutput(
+      conveyor_sim.plant->get_state_output_port(), conveyor_sim.builder.get());
+  sim_state_logger->set_name("sim_state_logger");
+  auto des_state_logger = drake::systems::LogVectorOutput(
+      xdes->get_output_port(), conveyor_sim.builder.get());
+  des_state_logger->set_name("des_state_logger");
+
+  // Set up context
+  std::unique_ptr<drake::systems::Diagram<double>> diagram =
+      conveyor_sim.builder->Build();
+  std::unique_ptr<drake::systems::Context<double>> diagram_context =
+      diagram->CreateDefaultContext();
+  diagram->SetDefaultContext(diagram_context.get());
+
+  auto& plant_context = diagram->GetMutableSubsystemContext(
+      *conveyor_sim.plant, diagram_context.get());
+
+  // Force visualization
+  diagram->ForcedPublish(*diagram_context);
+
+  const std::string path =
+      "/home/juanmedrano_eng/repos/c3/examples/conveyor_belt_diagram.dot";
+  std::ofstream graphviz(path);
+  std::map<std::string, std::string> options_gv{{"plant/split", "I/O"}};
+  graphviz << diagram->GetGraphvizString({}, options_gv);
+
+  // Set up simulator
+  drake::systems::Simulator<double> simulator(*diagram,
+                                              std::move(diagram_context));
+  simulator.set_target_realtime_rate(1.0);
+  simulator.Initialize();
+  visualizer.StartRecording();
+  simulator.AdvanceTo(20.0);
+  visualizer.PublishRecording();
+
+  // Plot data
+  const auto& u_log = u_logger->FindLog(simulator.get_context());
+  drake::common::CallPython("figure", 1);
+  drake::common::CallPython("clf");
+  drake::common::CallPython("plot", u_log.sample_times(),
+                            u_log.data().transpose());
+  drake::common::CallPython("title", "Control input");
+
+  const auto& state_log = sim_state_logger->FindLog(simulator.get_context());
+  drake::common::CallPython("figure", 2);
+  drake::common::CallPython("clf");
+  drake::common::CallPython("plot", state_log.sample_times(),
+                            state_log.data().transpose());
+  drake::common::CallPython("legend", drake::common::ToPythonTuple(
+                                          "x", "z", "pitch", "vx", "vz", "wy"));
+  drake::common::CallPython("title", "Sim Plant State");
+  drake::common::CallPython("grid", true);
+
+  const auto& des_state_log =
+      des_state_logger->FindLog(simulator.get_context());
+  drake::common::CallPython("figure", 3);
+  drake::common::CallPython("clf");
+  drake::common::CallPython("plot", des_state_log.sample_times(),
+                            des_state_log.data().transpose());
+  drake::common::CallPython(
+      "legend", drake::common::ToPythonTuple("x_d", "z_d", "pitch_d", "vx_d",
+                                             "vz_d", "wy_d"));
+  drake::common::CallPython("title", "Sim Plant Desired State");
+  drake::common::CallPython("grid", true);
 
   return 0;
 }
