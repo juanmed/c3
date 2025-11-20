@@ -10,10 +10,10 @@ lcs_factory_options:
   # contact_model : 'stewart_and_trinkle'
   contact_model: "stewart_and_trinkle"
   num_friction_directions: 2
-  num_contacts: 1
+  num_contacts: 2
   spring_stiffness: 0
-  mu: [ 0.8 ]
-  N: 10
+  mu: [ 0.8, 0.8 ]
+  N: 5
   dt: 0.01
 
 c3_options:
@@ -34,17 +34,17 @@ c3_options:
   w_R: 4 #
   w_G: 0.3 #
   w_U: 1 #
-  q_vector: [ 150, 150, 150, 150, 150, 15000, 15000, 15000, 15000, 10, 10, 10, 10, 10, 1, 1, 1, 1 ]   #State Tracking Error, assuming diagonal
-  r_vector: [ 1, 1, 1, 1, 1, 1 ] #Single surface-velocity input
+  q_vector: [ 15000, 15000, 15000, 15000, 15000, 150, 150, 150, 150, 100, 100, 100, 100, 100, 1, 1, 1, 1 ]   #State Tracking Error, assuming diagonal
+  r_vector: [ 1, 1, 1, 1, 1, 10 ] #Single surface-velocity input
   g_x: [ 0.04, 0.2, 0.01, 0.05, 0.2, 0.01, 0.04, 0.2, 0.01, 0.05, 0.2, 0.01, 0.04, 0.2, 0.01, 0.05, 0.2, 0.01 ]
-  g_gamma: [ 1 ]
-  g_lambda_n: [ 1 ]
-  g_lambda_t: [ 1, 1, 1, 1 ]
+  g_gamma: [ 1, 1 ]
+  g_lambda_n: [ 1, 1 ]
+  g_lambda_t: [ 1, 1, 1, 1, 1, 1, 1, 1 ]
   g_lambda: []
   g_u: [ 1, 1, 1, 1, 1, 1 ] 
   u_x: [ 0.3, 0.7, 8, 1, 1.5, 1.5, 0.3, 0.7, 8, 1, 1.5, 1.5, 0.3, 0.7, 8, 1, 1.5, 1.5 ]
-  u_gamma: [ 1 ]
-  u_lambda_n: [ 1 ]
-  u_lambda_t: [ 1, 1, 1, 1 ]
+  u_gamma: [ 1, 1 ]
+  u_lambda_n: [ 1, 1 ]
+  u_lambda_t: [ 1, 1, 1, 1, 1, 1, 1, 1 ]
   u_lambda: []
   u_u: [ 1, 1, 1, 1, 1, 1 ] #Weight for the surface-velocity command

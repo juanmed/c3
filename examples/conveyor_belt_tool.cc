@@ -85,7 +85,10 @@ std::vector<drake::SortedPair<drake::geometry::GeometryId>> extractContactPairs(
           .at(0);
   const drake::geometry::GeometryId geom_b =
       plant->GetCollisionGeometriesForBody(plant->GetBodyByName("box")).at(0);
+  const drake::geometry::GeometryId geom_c =
+      plant->GetCollisionGeometriesForBody(plant->GetBodyByName("floor")).at(0);
   contact_pairs.push_back({geom_a, geom_b});
+  contact_pairs.push_back({geom_b, geom_c});
   return contact_pairs;
 }
 
@@ -134,7 +137,7 @@ int conveyor_belt_tool() {
 
   // Add a constant vector source for the desired state.
   Eigen::VectorXd xd(18);
-  xd << 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+  xd << 1, 1, 0.2, 1.5, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
   auto xdes = conveyor_sim.builder
                   ->AddSystem<drake::systems::ConstantVectorSource<double>>(xd);
 
@@ -230,7 +233,7 @@ int conveyor_belt_tool() {
   diagram->ForcedPublish(*diagram_context);
 
   const std::string path =
-      "/home/juanmedrano_eng/repos/c3/examples/conveyor_belt_diagram.dot";
+      "/home/juanmedrano_eng/repos/c3/examples/conveyor_belt_tool_diagram.dot";
   std::ofstream graphviz(path);
   std::map<std::string, std::string> options_gv{{"plant/split", "I/O"}};
   graphviz << diagram->GetGraphvizString({}, options_gv);
@@ -241,7 +244,7 @@ int conveyor_belt_tool() {
   simulator.set_target_realtime_rate(1.0);
   simulator.Initialize();
   visualizer.StartRecording();
-  simulator.AdvanceTo(20.0);
+  simulator.AdvanceTo(5.0);
   visualizer.PublishRecording();
 
   // Plot data
@@ -250,6 +253,8 @@ int conveyor_belt_tool() {
   drake::common::CallPython("clf");
   drake::common::CallPython("plot", u_log.sample_times(),
                             u_log.data().transpose());
+  drake::common::CallPython("legend", drake::common::ToPythonTuple(
+                                          "u_z", "u_x", "u_r", "u_y", "u_y", "s"));
   drake::common::CallPython("title", "Control input");
 
   const auto& state_log = sim_state_logger->FindLog(simulator.get_context());
