@@ -26,6 +26,7 @@
 #include "drake/systems/analysis/simulator.h"
 #include "drake/systems/framework/diagram_builder.h"
 #include "drake/systems/primitives/demultiplexer.h"
+#include "drake/systems/primitives/sine.h"
 #include "drake/systems/primitives/vector_log_sink.h"
 
 struct ConveyorSystem {
@@ -35,9 +36,33 @@ struct ConveyorSystem {
   drake::geometry::SceneGraph<double>* scene_graph{};
 };
 
+class SineVectorGenerator : public drake::systems::LeafSystem<double> {
+ public:
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(SineVectorGenerator);
+  SineVectorGenerator() {
+    this->DeclareVectorOutputPort("sine_cosine",
+                                  drake::systems::BasicVector<double>(6),
+                                  &SineVectorGenerator::calc_output);
+  }
+
+  void calc_output(const drake::systems::Context<double>& context,
+                   drake::systems::BasicVector<double>* output_vector) const {
+    Eigen::VectorBlock<Eigen::VectorX<double>> output_value =
+        output_vector->get_mutable_value();
+    Eigen::VectorX<double> out = Eigen::VectorX<double>::Zero(6);
+    out(0) = 2.5 * std::sin(3.5 * context.get_time()) + 1;
+    out(1) = 1 * std::cos(3 * context.get_time()) + 2;
+    out(2) = 2 * std::sin(2.5 * context.get_time()) + 3;
+    out(3) = 3 * std::sin(2 * context.get_time()) + 4;
+    out(4) = 1 * std::cos(1.5 * context.get_time()) + 5;
+    out(5) = 4 * std::cos(1 * context.get_time()) + 0;
+    output_value = out;
+  }
+};
+
 ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   drake::multibody::MultibodyPlantConfig config;
-  config.time_step = 0.0;  // continuous plant
+  config.time_step = 0.005;  // continuous plant
   config.penetration_allowance = 0.001;
   config.contact_model = "point";
   config.contact_surface_representation = "polygon";
@@ -168,10 +193,13 @@ int conveyor_belt_tool() {
   auto input_demux =
       conveyor_sim.builder->AddSystem<drake::systems::Demultiplexer>(
           state_demux_sizes);
-  conveyor_sim.builder->Connect(c3_input->get_output_port_c3_input(),
+
+  auto sine_vector_gen = conveyor_sim.builder->AddSystem<SineVectorGenerator>();
+  conveyor_sim.builder->Connect(sine_vector_gen->get_output_port(),
                                 input_demux->get_input_port());
   conveyor_sim.builder->Connect(input_demux->get_output_port(0),
                                 conveyor_sim.plant->get_actuation_input_port());
+
   const drake::geometry::GeometryId geom_id =
       conveyor_sim.plant
           ->GetCollisionGeometriesForBody(
@@ -210,13 +238,13 @@ int conveyor_belt_tool() {
 
   // Setup state, input desired state loggers
   auto u_logger = drake::systems::LogVectorOutput(
-      c3_input->get_output_port_c3_input(), conveyor_sim.builder.get());
+      input_demux->get_output_port(0), conveyor_sim.builder.get());
   u_logger->set_name("u_logger");
   auto sim_state_logger = drake::systems::LogVectorOutput(
       conveyor_sim.plant->get_state_output_port(), conveyor_sim.builder.get());
   sim_state_logger->set_name("sim_state_logger");
   auto des_state_logger = drake::systems::LogVectorOutput(
-      xdes->get_output_port(), conveyor_sim.builder.get());
+       conveyor_sim.plant->get_net_actuation_output_port(), conveyor_sim.builder.get());
   des_state_logger->set_name("des_state_logger");
 
   // Set up context
@@ -253,8 +281,8 @@ int conveyor_belt_tool() {
   drake::common::CallPython("clf");
   drake::common::CallPython("plot", u_log.sample_times(),
                             u_log.data().transpose());
-  drake::common::CallPython("legend", drake::common::ToPythonTuple(
-                                          "u_z", "u_x", "u_r", "u_y", "u_y", "s"));
+  // drake::common::CallPython("legend", drake::common::ToPythonTuple(
+  //                                         "u_z", "u_x", "u_r", "u_y", "u_y", "s"));
   drake::common::CallPython("title", "Control input");
 
   const auto& state_log = sim_state_logger->FindLog(simulator.get_context());
@@ -262,8 +290,8 @@ int conveyor_belt_tool() {
   drake::common::CallPython("clf");
   drake::common::CallPython("plot", state_log.sample_times(),
                             state_log.data().transpose());
-  drake::common::CallPython("legend", drake::common::ToPythonTuple(
-                                          "x", "z", "pitch", "vx", "vz", "wy"));
+  // drake::common::CallPython("legend", drake::common::ToPythonTuple(
+  //                                         "x", "z", "pitch", "vx", "vz", "wy"));
   drake::common::CallPython("title", "Sim Plant State");
   drake::common::CallPython("grid", true);
 
@@ -273,9 +301,9 @@ int conveyor_belt_tool() {
   drake::common::CallPython("clf");
   drake::common::CallPython("plot", des_state_log.sample_times(),
                             des_state_log.data().transpose());
-  drake::common::CallPython(
-      "legend", drake::common::ToPythonTuple("x_d", "z_d", "pitch_d", "vx_d",
-                                             "vz_d", "wy_d"));
+  // drake::common::CallPython(
+  //     "legend", drake::common::ToPythonTuple("x_d", "z_d", "pitch_d", "vx_d",
+  //                                            "vz_d", "wy_d"));
   drake::common::CallPython("title", "Sim Plant Desired State");
   drake::common::CallPython("grid", true);
 
