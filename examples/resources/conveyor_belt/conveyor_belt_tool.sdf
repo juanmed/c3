@@ -2,11 +2,22 @@
   <model name="conveyor_belt_tool_model">
 
     <link name="floor">
-      <pose>0 0 0 0 0 -0.005  </pose>
+      <inertial>
+        <mass>1.0</mass>
+        <inertia>
+          <ixx>1</ixx>
+          <iyy>1</iyy>
+          <izz>1</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <pose>0 0 -0.5 0 0 0  </pose>
       <visual name="floor_visual">
         <geometry>
           <box>
-            <size>10 10 0.01</size>
+            <size>10 10 1</size>
           </box>
         </geometry>
         <material>
@@ -17,12 +28,11 @@
       <collision name="floor_collision">
         <geometry>
           <box>
-            <size>10 10 0.01</size>
+            <size>10 10 1</size>
           </box>
         </geometry>
         <!-- <drake:proximity_properties>
-          <drake:compliant_hydroelastic/>
-          <drake:hydroelastic_modulus>5e6</drake:hydroelastic_modulus>
+          <drake:hydroelastic_modulus>1e8</drake:hydroelastic_modulus>
           <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
           <drake:mu_dynamic>0.5</drake:mu_dynamic>
           <drake:mu_static>0.6</drake:mu_static>
@@ -35,14 +45,97 @@
       <child>floor</child>
     </joint>
 
-    <link name="base_link"/>
-    <link name="slider_x"/>
-    <link name="hinge_x"/>
-    <link name="slider_y"/>
-    <link name="hinge_y"/>
-    <link name="slider_z"/>
+    <link name="base_link">
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <iyy>0.000001</iyy>
+          <izz>0.000001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+    <link name="slider_x">
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <iyy>0.000001</iyy>
+          <izz>0.000001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+    <link name="hinge_x">
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <iyy>0.000001</iyy>
+          <izz>0.000001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+    <link name="slider_y">
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <iyy>0.000001</iyy>
+          <izz>0.000001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+    <link name="hinge_y">
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <iyy>0.000001</iyy>
+          <izz>0.000001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
+    <link name="slider_z">
+      <inertial>
+        <mass>0.001</mass>
+        <inertia>
+          <ixx>0.000001</ixx>
+          <iyy>0.000001</iyy>
+          <izz>0.000001</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+    </link>
     <link name="conveyor_belt_tool">
-      <pose> 1 0.5 0.15 1.57 0 0 </pose>
+      <inertial>
+        <mass>0.1</mass>
+        <inertia>
+          <ixx>0.0077083</ixx>
+          <iyy>0.0077083</iyy>
+          <izz>0.015</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <pose> 0 0 0.1 0 0 0 </pose>
       <visual name="conveyor_belt_tool_visual">
         <geometry>
           <box> 
@@ -61,12 +154,11 @@
           </box>
         </geometry>
         <drake:proximity_properties>
-          <drake:compliant_hydroelastic/>
           <drake:hydroelastic_modulus> 1e8 </drake:hydroelastic_modulus>
           <drake:mu_dynamic> 0.8 </drake:mu_dynamic>
           <drake:mu_static> 1.0 </drake:mu_static>
           <drake:hunt_crossley_dissipation>1</drake:hunt_crossley_dissipation>
-          <drake:point_contact_stiffness>1e4</drake:point_contact_stiffness>
+          <drake:point_contact_stiffness>1e9</drake:point_contact_stiffness>
           <drake:surface_speed>0.5</drake:surface_speed>
           <drake:surface_velocity_normal>0 1 0</drake:surface_velocity_normal>
         </drake:proximity_properties>
