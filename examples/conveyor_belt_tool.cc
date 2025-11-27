@@ -194,8 +194,8 @@ int conveyor_belt_tool() {
       conveyor_sim.builder->AddSystem<drake::systems::Demultiplexer>(
           state_demux_sizes);
 
-  auto sine_vector_gen = conveyor_sim.builder->AddSystem<SineVectorGenerator>();
-  conveyor_sim.builder->Connect(sine_vector_gen->get_output_port(),
+  // auto sine_vector_gen = conveyor_sim.builder->AddSystem<SineVectorGenerator>();
+  conveyor_sim.builder->Connect(c3_input->get_output_port(),
                                 input_demux->get_input_port());
   conveyor_sim.builder->Connect(input_demux->get_output_port(0),
                                 conveyor_sim.plant->get_actuation_input_port());
