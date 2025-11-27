@@ -63,8 +63,8 @@ class SineVectorGenerator : public drake::systems::LeafSystem<double> {
 ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   drake::multibody::MultibodyPlantConfig config;
   config.time_step = 0.005;  // continuous plant
-  config.penetration_allowance = 0.001;
-  config.contact_model = "point";
+  config.penetration_allowance = 0.005;
+  config.contact_model = "hydroelastic";
   config.contact_surface_representation = "polygon";
 
   drake::geometry::SceneGraphConfig scene_graph_config;
@@ -161,10 +161,8 @@ int conveyor_belt_tool() {
   c3_controller->set_name("c3_controller");
 
   // Add a constant vector source for the desired state.
-  Eigen::VectorXd xd(18);
-  xd << 1, 1, 0.2, 1.5, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
   auto xdes = conveyor_sim.builder
-                  ->AddSystem<drake::systems::ConstantVectorSource<double>>(xd);
+                  ->AddSystem<drake::systems::ConstantVectorSource<double>>(options.goal);
 
   // Add a vector-to-timestamped-vector converter.
   auto vector_to_timestamped_vector =

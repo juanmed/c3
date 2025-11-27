@@ -61,6 +61,8 @@ struct C3ControllerOptions {
   double publish_frequency = 100.0;  // Hz
 
   std::vector<C3StatePredictionJoint> state_prediction_joints;
+  Eigen::VectorXd goal;
+  std::vector<double> goal_state;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -70,6 +72,7 @@ struct C3ControllerOptions {
     a->Visit(DRAKE_NVP(solve_time_filter_alpha));
     a->Visit(DRAKE_NVP(publish_frequency));
     a->Visit(DRAKE_NVP(state_prediction_joints));
+    a->Visit(DRAKE_NVP(goal_state));
 
     if (projection_type == "QP") {
       DRAKE_DEMAND(lcs_factory_options.contact_model == "anitescu");
@@ -87,6 +90,8 @@ struct C3ControllerOptions {
       DRAKE_DEMAND(static_cast<int>(c3_options.u_eta_vector.size()) ==
                    expected_lambda_size);
     }
+
+    goal = Eigen::Map<Eigen::VectorXd, Eigen::Unaligned>(this->goal_state.data(), this->goal_state.size());
   }
 };
 
