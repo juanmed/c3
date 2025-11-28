@@ -4,6 +4,7 @@ solve_time_filter_alpha: 0.0
 #set to 0 to publish as fast as possible
 publish_frequency: 100
 state_prediction_joints: []
+goal_state: [1, 0, 1.5, 0, 0, 0]
 
 lcs_factory_options:
   #options are 'stewart_and_trinkle' or 'anitescu'

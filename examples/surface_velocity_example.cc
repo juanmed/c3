@@ -241,10 +241,8 @@ int surface_velocity_example() {
   //                                    ConstraintVariable::STATE);
 
   // Add a constant vector source for the desired state.
-  Eigen::VectorXd xd(6);
-  xd << 0, 0, 1.5, 0, 0, 0;
   auto xdes = plant_for_sim_builder
-                  .AddSystem<drake::systems::ConstantVectorSource<double>>(xd);
+                  .AddSystem<drake::systems::ConstantVectorSource<double>>(options.goal);
 
   // Add a vector-to-timestamped-vector converter.
   auto vector_to_timestamped_vector =
