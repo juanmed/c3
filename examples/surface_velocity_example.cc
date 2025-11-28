@@ -125,7 +125,7 @@ int surface_velocity_example() {
   config.time_step = 0.0;
   config.penetration_allowance = 0.001;
   config.contact_model =
-      "point";  // "hydroelastic" or "point" or "hydroelastic_with_fallback"
+      "hydroelastic";  // "hydroelastic" or "point" or "hydroelastic_with_fallback"
   config.contact_surface_representation = "polygon";  // "polygon" or "triangle"
 
   drake::geometry::SceneGraphConfig scene_graph_config;
@@ -339,7 +339,7 @@ int surface_velocity_example() {
   simulator.set_target_realtime_rate(1.0);
   simulator.Initialize();
   visualizer.StartRecording();
-  simulator.AdvanceTo(20.0);
+  simulator.AdvanceTo(2.0);
   visualizer.PublishRecording();
 
   // Plot data

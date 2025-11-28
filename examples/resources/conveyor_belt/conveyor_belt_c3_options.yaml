@@ -4,7 +4,7 @@ solve_time_filter_alpha: 0.0
 #set to 0 to publish as fast as possible
 publish_frequency: 100
 state_prediction_joints: []
-goal_state: [1, 0, 1.5, 0, 0, 0]
+goal_state: [1, 0, 0, 0, 0, 0]
 
 lcs_factory_options:
   #options are 'stewart_and_trinkle' or 'anitescu'
@@ -32,15 +32,15 @@ c3_options:
   gamma: 0.62
   rho_scale: 0.4 #matrix scaling
   w_Q: 4.1
-  w_R: 4 #
+  w_R: 0.5 #
   w_G: 0.3 #
   w_U: 1 #
-  q_vector: [ 47000, 0.5, 44000, 2000, 50, 0.05 ]   #State Tracking Error, assuming diagonal
+  q_vector: [ 47000, 0, 4e1, 200, 0, 20 ]   #State Tracking Error, assuming diagonal
   r_vector: [ 0.2 ] #Single surface-velocity input
   g_x: [ 0.04, 0.2, 0.01, 0.05, 0.2, 0.01 ]
-  g_gamma: [ 1 ]
+  g_gamma: [ 0.1 ]
   g_lambda_n: [ 1 ]
-  g_lambda_t: [ 1, 1, 1, 1 ]
+  g_lambda_t: [ 0.1, 0.1, 0.1, 0.1 ]
   g_lambda: []
   g_u: [ 1 ] 
   u_x: [ 0.3, 0.7, 8, 1, 1.5, 1.5 ]
