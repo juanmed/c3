@@ -67,7 +67,7 @@ ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   drake::multibody::MultibodyPlantConfig config;
   config.time_step = 0.005;  // continuous plant
   config.penetration_allowance = 0.005;
-  config.contact_model = "hydroelastic";
+  config.contact_model = "point";
   config.contact_surface_representation = "polygon";
 
   drake::geometry::SceneGraphConfig scene_graph_config;
