@@ -311,7 +311,8 @@ class LCSFactory {
    */
   void ComputeSetOfGeometriesWithSurfaceVelocity();
 
-  Eigen::Matrix<double, Eigen::Dynamic, 3> GetForceBasis() const;
+  Eigen::Matrix<double, Eigen::Dynamic, 3> GetForceBasis(
+      const Eigen::Vector3d& contact_normal) const;
 
   // References to the MultibodyPlant and its contexts
   const drake::multibody::MultibodyPlant<double>& plant_;

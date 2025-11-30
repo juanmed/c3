@@ -325,7 +325,6 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
     static const Eigen::Matrix3d R_C = Eigen::Matrix3d::Identity();
     // drake::math::RotationMatrixd::MakeYRotation(M_PI_2) *
     // drake::math::RotationMatrixd::MakeZRotation(M_PI_2);
-    const Eigen::Matrix<double, Eigen::Dynamic, 3> fb = GetForceBasis();
 
     const auto& query_port =
         plant_.get_geometry_query_input_port()
@@ -341,6 +340,10 @@ void LCSFactory::FormulateStewartTrinkleContactDynamics(
               query_result.signed_distance_pair.nhat_BA_W, 0)
               .matrix()
               .transpose();
+
+      // Get force basis
+      const Eigen::Matrix<double, Eigen::Dynamic, 3> fb =
+          GetForceBasis(query_result.nhat_BA_W);
 
       if (auto iter = geoms_with_surface_velocity_.find(geom_a);
           iter != geoms_with_surface_velocity_.end()) {
@@ -452,7 +455,6 @@ void LCSFactory::FormulateAnitescuContactDynamics(
     // drake::math::RotationMatrixd::MakeZRotation(M_PI_2);
     const Eigen::VectorXd Ek =
         Eigen::VectorXd::Ones(2 * n_friction_directions_);
-    const Eigen::Matrix<double, Eigen::Dynamic, 3> fb = GetForceBasis();
 
     const auto& query_port =
         plant_.get_geometry_query_input_port()
@@ -471,6 +473,10 @@ void LCSFactory::FormulateAnitescuContactDynamics(
               query_result.signed_distance_pair.nhat_BA_W, 0)
               .matrix()
               .transpose();
+
+      // Get force basis
+      const Eigen::Matrix<double, Eigen::Dynamic, 3> fb =
+          GetForceBasis(query_result.nhat_BA_W);
 
       // Loop through contact geometries and add surface velocity jacobians.
       // All this happens in the contact frame.
@@ -786,11 +792,12 @@ std::set<drake::geometry::GeometryId> GetSetOfGeometriesWithSurfaceVelocity(
   return lcsf.geoms_with_surface_velocity_;
 }
 
-Eigen::Matrix<double, Eigen::Dynamic, 3> LCSFactory::GetForceBasis() const {
+Eigen::Matrix<double, Eigen::Dynamic, 3> LCSFactory::GetForceBasis(
+    const Eigen::Vector3d& contact_normal) const {
   if (frictionless_ || n_friction_directions_ == 1) {
     // TODO(@juan) implement computer planar forces using contact normal
-    return GeomGeomCollider<double>::ComputePlanarForceBasis(
-        Eigen::Vector3d(3, 1, 1).normalized(), planar_normal_);
+    return GeomGeomCollider<double>::ComputePlanarForceBasis(contact_normal,
+                                                             planar_normal_);
   }
   return GeomGeomCollider<double>::ComputePolytopeForceBasis(
       n_friction_directions_);
