@@ -65,7 +65,7 @@ class SineVectorGenerator : public drake::systems::LeafSystem<double> {
 
 ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   drake::multibody::MultibodyPlantConfig config;
-  config.time_step = 0.005;  // continuous plant
+  config.time_step = 0.008;  // continuous plant
   config.penetration_allowance = 0.005;
   config.contact_model = "point";
   config.contact_surface_representation = "polygon";
@@ -216,9 +216,9 @@ int conveyor_belt_tool() {
       conveyor_sim.builder->AddSystem<drake::systems::Demultiplexer>(
           state_demux_sizes);
 
-  auto sine_vector_gen = conveyor_sim.builder->AddSystem<SineVectorGenerator>(
-      lcs_num_inputs + lcs_num_biases);
-  conveyor_sim.builder->Connect(sine_vector_gen->get_output_port(),
+  // auto sine_vector_gen = conveyor_sim.builder->AddSystem<SineVectorGenerator>(
+  //     lcs_num_inputs + lcs_num_biases);
+  conveyor_sim.builder->Connect(c3_input->get_output_port(),
                                 input_demux->get_input_port());
   conveyor_sim.builder->Connect(input_demux->get_output_port(0),
                                 conveyor_sim.plant->get_actuation_input_port());
@@ -261,13 +261,13 @@ int conveyor_belt_tool() {
 
   // Setup state, input desired state loggers
   auto u_logger = drake::systems::LogVectorOutput(
-      input_demux->get_output_port(0), conveyor_sim.builder.get());
+      c3_input->get_output_port(), conveyor_sim.builder.get());
   u_logger->set_name("u_logger");
   auto sim_state_logger = drake::systems::LogVectorOutput(
       conveyor_sim.plant->get_state_output_port(), conveyor_sim.builder.get());
   sim_state_logger->set_name("sim_state_logger");
   auto des_state_logger = drake::systems::LogVectorOutput(
-       conveyor_sim.plant->get_net_actuation_output_port(), conveyor_sim.builder.get());
+       xdes->get_output_port(), conveyor_sim.builder.get());
   des_state_logger->set_name("des_state_logger");
 
   // Set up context
@@ -296,7 +296,7 @@ int conveyor_belt_tool() {
   simulator.set_target_realtime_rate(1.0);
   simulator.Initialize();
   visualizer.StartRecording();
-  simulator.AdvanceTo(2.0);
+  simulator.AdvanceTo(10.5);
   visualizer.PublishRecording();
 
   // Plot data
@@ -305,8 +305,8 @@ int conveyor_belt_tool() {
   drake::common::CallPython("clf");
   drake::common::CallPython("plot", u_log.sample_times(),
                             u_log.data().transpose());
-  // drake::common::CallPython("legend", drake::common::ToPythonTuple(
-  //                                         "u_z", "u_x", "u_r", "u_y", "u_y", "s"));
+  drake::common::CallPython("legend", drake::common::ToPythonTuple(
+                                          "u_x", "s"));
   drake::common::CallPython("title", "Control input");
 
   const auto& state_log = sim_state_logger->FindLog(simulator.get_context());

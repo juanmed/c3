@@ -3,7 +3,7 @@
   <model name="box">
     <link name="box">
       <inertial>
-        <mass>0.3</mass>
+        <mass>1</mass>
         <inertia>
           <ixx>0.0077083</ixx>
           <iyy>0.0077083</iyy>
