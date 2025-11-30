@@ -296,7 +296,7 @@ int conveyor_belt_tool() {
   simulator.set_target_realtime_rate(1.0);
   simulator.Initialize();
   visualizer.StartRecording();
-  simulator.AdvanceTo(10.5);
+  simulator.AdvanceTo(7);
   visualizer.PublishRecording();
 
   // Plot data
