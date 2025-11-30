@@ -35,7 +35,7 @@ c3_options:
   w_R: 4
   w_G: 0.3
   w_U: 1
-  q_vector: [ 1, 1, 1, 1, 1, 1, 1, 1 ]   #State Tracking Error, assuming diagonal
+  q_vector: [ 1e3, 1e3, 1e3, 1, 1, 1, 1, 1 ]   #State Tracking Error, assuming diagonal
   r_vector: [ 1, 1 ] #Single surface-velocity input
   g_x: [ 1, 1, 1, 1, 1, 1, 1, 1]
   g_gamma: [ 1, 1 ]

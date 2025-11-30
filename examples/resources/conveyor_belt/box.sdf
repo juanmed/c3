@@ -13,7 +13,7 @@
           <iyz>0</iyz>
         </inertia>
       </inertial>
-      <pose>0 0 0.3 0 0 0</pose>
+      <pose>0 0 0.075 0 0 0</pose>
       <visual name="box_visual">
         <geometry>
           <box>
@@ -46,7 +46,6 @@
     <link name="box_base_link"/>
     <link name="box_slider_x"/>
     <link name="box_slider_y"/>
-    <link name="box_slider_z"/>
 
     <joint name="box_base_fixed" type="fixed">
       <parent>world</parent>
@@ -83,24 +82,9 @@
       </axis>
     </joint>
 
-    <!-- Translation along Z -->
-    <joint name="box_prismatic_z" type="prismatic">
-      <parent>box_slider_y</parent>
-      <child>box_slider_z</child>
-      <pose>0 0 0 0 0 0</pose>
-      <axis>
-        <xyz>0 0 1</xyz>
-        <limit>
-          <effort>0</effort>
-          <lower>-5</lower>
-          <upper>5</upper>
-        </limit>
-      </axis>
-    </joint>
-
     <!-- Yaw-only rotation -->
     <joint name="box_revolute_yaw" type="revolute">
-      <parent>box_slider_z</parent>
+      <parent>box_slider_y</parent>
       <child>box</child>
       <pose>0 0 0 0 0 0</pose>
       <axis>

@@ -39,9 +39,9 @@ struct ConveyorSystem {
 class SineVectorGenerator : public drake::systems::LeafSystem<double> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(SineVectorGenerator);
-  SineVectorGenerator() {
+  SineVectorGenerator(int dims) : dims_(dims) {
     this->DeclareVectorOutputPort("sine_cosine",
-                                  drake::systems::BasicVector<double>(6),
+                                  drake::systems::BasicVector<double>(dims_),
                                   &SineVectorGenerator::calc_output);
   }
 
@@ -49,22 +49,25 @@ class SineVectorGenerator : public drake::systems::LeafSystem<double> {
                    drake::systems::BasicVector<double>* output_vector) const {
     Eigen::VectorBlock<Eigen::VectorX<double>> output_value =
         output_vector->get_mutable_value();
-    Eigen::VectorX<double> out = Eigen::VectorX<double>::Zero(6);
-    out(0) = 2.5 * std::sin(3.5 * context.get_time()) + 1;
+    Eigen::VectorX<double> out = Eigen::VectorX<double>::Zero(dims_);
+    out(0) = 2.5 * std::cos(1 * context.get_time());
     out(1) = 1 * std::cos(3 * context.get_time()) + 2;
-    out(2) = 2 * std::sin(2.5 * context.get_time()) + 3;
-    out(3) = 3 * std::sin(2 * context.get_time()) + 4;
-    out(4) = 1 * std::cos(1.5 * context.get_time()) + 5;
-    out(5) = 4 * std::cos(1 * context.get_time()) + 0;
+    // out(2) = 2 * std::sin(2.5 * context.get_time()) + 3;
+    // out(3) = 3 * std::sin(2 * context.get_time()) + 4;
+    // out(4) = 1 * std::cos(1.5 * context.get_time()) + 5;
+    // out(5) = 4 * std::cos(1 * context.get_time()) + 0;
     output_value = out;
   }
+
+ private:
+  const int dims_;
 };
 
 ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   drake::multibody::MultibodyPlantConfig config;
   config.time_step = 0.005;  // continuous plant
   config.penetration_allowance = 0.005;
-  config.contact_model = "hydroelastic";
+  config.contact_model = "point";
   config.contact_surface_representation = "polygon";
 
   drake::geometry::SceneGraphConfig scene_graph_config;
@@ -74,7 +77,7 @@ ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   auto [plant_lcs, scene_graph_lcs] = drake::multibody::AddMultibodyPlant(
       config, scene_graph_config, lcs_builder.get());
   std::string conveyor_belt_tool_url =
-      "examples/resources/conveyor_belt/conveyor_belt_tool.sdf";
+      "examples/resources/conveyor_belt/conveyor_belt_tool_1d.sdf";
   std::string box_url = "examples/resources/conveyor_belt/box.sdf";
   drake::multibody::Parser parser(lcs_builder.get());
   parser.AddModels(conveyor_belt_tool_url);
@@ -91,12 +94,15 @@ ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   plant_lcs.set_name(name);
 
   // Filter collisions between conveyor belt and floor
-  auto floor_collision_set = drake::geometry::GeometrySet(plant_lcs.GetCollisionGeometriesForBody(
-      plant_lcs.GetBodyByName("floor")));
-  auto conveyor_belt_collision_set = drake::geometry::GeometrySet(plant_lcs.GetCollisionGeometriesForBody(
-      plant_lcs.GetBodyByName("conveyor_belt_tool")));
+  auto floor_collision_set =
+      drake::geometry::GeometrySet(plant_lcs.GetCollisionGeometriesForBody(
+          plant_lcs.GetBodyByName("floor")));
+  auto conveyor_belt_collision_set =
+      drake::geometry::GeometrySet(plant_lcs.GetCollisionGeometriesForBody(
+          plant_lcs.GetBodyByName("conveyor_belt_tool")));
   plant_lcs.ExcludeCollisionGeometriesWithCollisionFilterGroupPair(
-    {"floor", floor_collision_set}, {"conveyor_belt", conveyor_belt_collision_set});
+      {"floor", floor_collision_set},
+      {"conveyor_belt", conveyor_belt_collision_set});
 
   plant_lcs.Finalize();
 
@@ -132,9 +138,9 @@ int conveyor_belt_tool() {
 
   const auto prnt = [](const auto& e) { std::cout << e << std::endl; };
   auto u_ns = conveyor_lcs.plant->GetActuatorNames();
-  std::cout << "inputs" << std::endl;
+  std::cout << "Inputs:" << std::endl;
   std::for_each(u_ns.begin(), u_ns.end(), prnt);
-  std::cout << "states" << std::endl;
+  std::cout << "\nStates:" << std::endl;
   auto s_ns = conveyor_lcs.plant->GetStateNames();
   std::for_each(s_ns.begin(), s_ns.end(), prnt);
 
@@ -154,7 +160,7 @@ int conveyor_belt_tool() {
   // Add the LCS factory system.
   c3::systems::C3ControllerOptions options = drake::yaml::LoadYamlFile<
       c3::systems::C3ControllerOptions>(
-      "examples/resources/conveyor_belt/conveyor_belt_tool_c3_options.yaml");
+      "examples/resources/conveyor_belt/conveyor_belt_tool_1d_c3_options.yaml");
   auto lcs_factory_system =
       conveyor_sim.builder->AddSystem<c3::systems::LCSFactorySystem>(
           *conveyor_lcs.plant, plant_for_lcs_context, *plant_autodiff,
@@ -210,8 +216,9 @@ int conveyor_belt_tool() {
       conveyor_sim.builder->AddSystem<drake::systems::Demultiplexer>(
           state_demux_sizes);
 
-  // auto sine_vector_gen = conveyor_sim.builder->AddSystem<SineVectorGenerator>();
-  conveyor_sim.builder->Connect(c3_input->get_output_port(),
+  auto sine_vector_gen = conveyor_sim.builder->AddSystem<SineVectorGenerator>(
+      lcs_num_inputs + lcs_num_biases);
+  conveyor_sim.builder->Connect(sine_vector_gen->get_output_port(),
                                 input_demux->get_input_port());
   conveyor_sim.builder->Connect(input_demux->get_output_port(0),
                                 conveyor_sim.plant->get_actuation_input_port());
@@ -277,7 +284,8 @@ int conveyor_belt_tool() {
   diagram->ForcedPublish(*diagram_context);
 
   const std::string path =
-      "/home/juanmedrano_eng/repos/c3/examples/conveyor_belt_tool_diagram.dot";
+      "/home/juanmedrano_eng/repos/c3/examples/"
+      "conveyor_belt_tool_1d_diagram.dot";
   std::ofstream graphviz(path);
   std::map<std::string, std::string> options_gv{{"plant/split", "I/O"}};
   graphviz << diagram->GetGraphvizString({}, options_gv);
@@ -288,7 +296,7 @@ int conveyor_belt_tool() {
   simulator.set_target_realtime_rate(1.0);
   simulator.Initialize();
   visualizer.StartRecording();
-  simulator.AdvanceTo(5.0);
+  simulator.AdvanceTo(2.0);
   visualizer.PublishRecording();
 
   // Plot data
