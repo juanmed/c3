@@ -89,6 +89,15 @@ ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   plant_lcs.DeclareSurfaceVelocityInputPort(
       geom_id, Eigen::Vector3d(0.0, 1.0, 0.0), 0.5);
   plant_lcs.set_name(name);
+
+  // Filter collisions between conveyor belt and floor
+  auto floor_collision_set = drake::geometry::GeometrySet(plant_lcs.GetCollisionGeometriesForBody(
+      plant_lcs.GetBodyByName("floor")));
+  auto conveyor_belt_collision_set = drake::geometry::GeometrySet(plant_lcs.GetCollisionGeometriesForBody(
+      plant_lcs.GetBodyByName("conveyor_belt_tool")));
+  plant_lcs.ExcludeCollisionGeometriesWithCollisionFilterGroupPair(
+    {"floor", floor_collision_set}, {"conveyor_belt", conveyor_belt_collision_set});
+
   plant_lcs.Finalize();
 
   std::unique_ptr<drake::systems::Diagram<double>> plant_diagram;
@@ -165,8 +174,9 @@ int conveyor_belt_tool() {
                   ->AddSystem<drake::systems::ConstantVectorSource<double>>(options.goal);
 
   // Add a vector-to-timestamped-vector converter.
+  int n_states = conveyor_sim.plant->GetStateNames().size();
   auto vector_to_timestamped_vector =
-      conveyor_sim.builder->AddSystem<Vector2TimestampedVector>(18);
+      conveyor_sim.builder->AddSystem<Vector2TimestampedVector>(n_states);
 
   // sim plant -> timestamped vector -> c3 controller
   conveyor_sim.builder->Connect(
@@ -184,10 +194,18 @@ int conveyor_belt_tool() {
                                 c3_controller->get_input_port_target());
 
   // c3 controller's output -> plant inputs (actuators and surface velocity)
-  auto c3_input = conveyor_sim.builder->AddSystem<C3Solution2Input>(6);
+  const int lcs_num_inputs = conveyor_lcs.plant->num_actuators();
+  const int lcs_num_biases = lcs_factory_system->GetNumContactVelocityBiases();
+  auto c3_input = conveyor_sim.builder->AddSystem<C3Solution2Input>(
+      lcs_num_inputs + lcs_num_biases);
   conveyor_sim.builder->Connect(c3_controller->get_output_port_c3_solution(),
                                 c3_input->get_input_port_c3_solution());
-  const std::vector<int> state_demux_sizes = {5, 1};
+  std::vector<int> state_demux_sizes;
+  if (lcs_num_biases) {
+    state_demux_sizes = {lcs_num_inputs, lcs_num_biases};
+  } else {
+    state_demux_sizes = {lcs_num_inputs};
+  }
   auto input_demux =
       conveyor_sim.builder->AddSystem<drake::systems::Demultiplexer>(
           state_demux_sizes);
@@ -210,7 +228,7 @@ int conveyor_belt_tool() {
   // Add a ZeroOrderHold system for state updates.
   auto input_zero_order_hold =
       conveyor_sim.builder->AddSystem<drake::systems::ZeroOrderHold<double>>(
-          1 / options.publish_frequency, 6);
+          1 / options.publish_frequency, lcs_num_inputs + lcs_num_biases);
   conveyor_sim.builder->Connect(c3_input->get_output_port_c3_input(),
                                 input_zero_order_hold->get_input_port());
   conveyor_sim.builder->Connect(
