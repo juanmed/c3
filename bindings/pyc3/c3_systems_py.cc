@@ -105,7 +105,7 @@ PYBIND11_MODULE(systems, m) {
       .def("get_output_port_lcs", &LCSFactorySystem::get_output_port_lcs,
            py::return_value_policy::reference)
       .def("GetNumContactVelocityBiases",
-           &LCSFactorySystem::GetNumContactVelocityBiases);
+           &LCSFactorySystem::GetNumContactVelocityBiases)
       .def("get_output_port_lcs_contact_descriptions",
            &LCSFactorySystem::get_output_port_lcs_contact_descriptions,
            py::return_value_policy::reference);
@@ -181,7 +181,9 @@ PYBIND11_MODULE(systems, m) {
       .def_readwrite("lcs_factory_options",
                      &C3ControllerOptions::lcs_factory_options)
       .def_readwrite("state_prediction_joints",
-                     &C3ControllerOptions::state_prediction_joints);
+                     &C3ControllerOptions::state_prediction_joints)
+      .def_readwrite("goal", &C3ControllerOptions::goal)
+      .def_readwrite("goal_state", &C3ControllerOptions::goal_state);
 
   m.def("LoadC3ControllerOptions", &LoadC3ControllerOptions);
 

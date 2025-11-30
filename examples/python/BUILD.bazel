@@ -78,3 +78,17 @@ py_binary(
         "//core:default_solver_options",
     ],
 )
+
+
+py_binary(
+    name = "conveyor_tool",
+    srcs = ["conveyor_tool.py"],
+    deps = [
+        "//bindings/pyc3:pyc3",
+        ":c3_example",
+    ],
+    data = [
+        "//examples:example_data",
+        "//core:default_solver_options",
+    ],
+)
