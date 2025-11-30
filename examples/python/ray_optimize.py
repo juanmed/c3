@@ -1,45 +1,23 @@
 #!/usr/bin/env python3
-"""Optimize the surface velocity C3 controller using Ray Tune."""
+"""Optimize C3 controllers for either surface velocity or conveyor tool experiments using Ray Tune."""
 
 import argparse
 import json
 import os
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import ray
 from ray import air, tune
 
+from conveyor_tool import ConveyorToolExperiment
 from surface_velocity import SurfaceVelocityExperiment
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-BASE_C3_OPTIONS: Dict[str, List[float]] = {
-    "gamma": [1.0],
-    "rho_scale": [1.0],
-    "w_Q": [5.0],
-    "w_R": [5.0],
-    "w_G": [0.05],
-    "w_U": [1.0],
-    "q_vector": [5000.0, 5.0, 5000.0, 5000.0, 50.0, 0.5],
-    "r_vector": [0.1],
-    "g_x": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
-    "g_lambda": [],
-    "g_u": [1.0],
-    "u_x": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-    "u_lambda": [],
-    "u_u": [1.0],
-}
-
-SCALAR_OPTION_KEYS = {
-    "gamma",
-    "rho_scale",
-    "w_Q",
-    "w_R",
-    "w_G",
-    "w_U",
-}
+# Change this to ConveyorToolExperiment to optimize the conveyor tool system.
+EXPERIMENT_CLASS = ConveyorToolExperiment
 
 FAILURE_PENALTY = 1e9
 
@@ -54,7 +32,7 @@ def _positive_bounds(value: float, factor: float = 10.0) -> Tuple[float, float]:
 def build_param_space() -> Dict[str, object]:
     """Creates the Ray search space using log-uniform sampling."""
     param_space: Dict[str, tune.search.sample.Domain] = {}
-    for name, values in BASE_C3_OPTIONS.items():
+    for name, values in EXPERIMENT_CLASS.BASE_C3_OPTIONS.items():
         if not values:
             continue
         if len(values) == 1:
@@ -67,10 +45,12 @@ def build_param_space() -> Dict[str, object]:
     return param_space
 
 
-def config_to_c3_overrides(config: Dict[str, float]) -> Dict[str, List[float]]:
+def config_to_c3_overrides(
+    config: Dict[str, float]
+) -> Dict[str, Union[List[float], float]]:
     """Converts the Ray config dictionary back to C3 option overrides."""
     overrides: Dict[str, List[float]] = {}
-    for name, values in BASE_C3_OPTIONS.items():
+    for name, values in EXPERIMENT_CLASS.BASE_C3_OPTIONS.items():
         if not values:
             continue
         if len(values) == 1:
@@ -79,9 +59,9 @@ def config_to_c3_overrides(config: Dict[str, float]) -> Dict[str, List[float]]:
             overrides[name] = [
                 float(config[f"{name}_{idx}"]) for idx in range(len(values))
             ]
-    normalized = {}
+    normalized: Dict[str, Union[List[float], float]] = {}
     for key, value in overrides.items():
-        if key in SCALAR_OPTION_KEYS:
+        if key in EXPERIMENT_CLASS.SCALAR_OPTION_KEYS:
             normalized[key] = value[0]
         else:
             normalized[key] = value
@@ -99,12 +79,15 @@ def optimization_objective(
     if Path.cwd() != REPO_ROOT:
         os.chdir(REPO_ROOT)
     overrides = config_to_c3_overrides(config)
-    experiment = SurfaceVelocityExperiment(
+    experiment = EXPERIMENT_CLASS(
         settling_tolerance=settling_tolerance,
         enable_visualization=False,
     )
     try:
-        result = experiment.run(sim_time=sim_time, c3_overrides=overrides)
+        run_kwargs = {"sim_time": sim_time, "c3_overrides": overrides}
+        if isinstance(experiment, ConveyorToolExperiment):
+            run_kwargs["diagram_path"] = None
+        result = experiment.run(**run_kwargs)
     except Exception as exc:
         tune.report(
             {
@@ -131,7 +114,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Use Ray Tune to minimize the steady-state error and settling time "
-            "of the C3 surface velocity controller."
+            "of a selected C3-controlled experiment."
         )
     )
     parser.add_argument(
@@ -179,7 +162,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--run-name",
         type=str,
-        default="surface_velocity_c3",
+        default="c3_experiment",
         help="Name assigned to the Ray run (used in the output directory).",
     )
     parser.add_argument(

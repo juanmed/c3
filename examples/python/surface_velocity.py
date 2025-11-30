@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 import tempfile
-from typing import Dict, Optional, Sequence, Union
+from typing import ClassVar, Dict, List, Optional, Sequence, Set, Union
 
 import yaml
 
@@ -82,6 +82,31 @@ class SurfaceVelocityResult:
 
 class SurfaceVelocityExperiment:
     """Builds and simulates the conveyor belt surface velocity example."""
+
+    BASE_C3_OPTIONS: ClassVar[Dict[str, List[float]]] = {
+        "gamma": [1.0],
+        "rho_scale": [1.0],
+        "w_Q": [5.0],
+        "w_R": [5.0],
+        "w_G": [0.05],
+        "w_U": [1.0],
+        "q_vector": [5000.0, 5.0, 5000.0, 5000.0, 50.0, 0.5],
+        "r_vector": [0.1],
+        "g_x": [0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
+        "g_lambda": [],
+        "g_u": [1.0],
+        "u_x": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        "u_lambda": [],
+        "u_u": [1.0],
+    }
+    SCALAR_OPTION_KEYS: ClassVar[Set[str]] = {
+        "gamma",
+        "rho_scale",
+        "w_Q",
+        "w_R",
+        "w_G",
+        "w_U",
+    }
 
     def __init__(
         self,

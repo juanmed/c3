@@ -8,7 +8,7 @@ import json
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import ClassVar, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 import numpy as np
 import yaml
@@ -43,6 +43,10 @@ DEFAULT_CONVEYOR_SDF = RESOURCES_DIR / "conveyor_belt_tool_1d.sdf"
 DEFAULT_BOX_SDF = RESOURCES_DIR / "box.sdf"
 DEFAULT_OPTIONS = RESOURCES_DIR / "conveyor_belt_tool_1d_c3_options.yaml"
 DEFAULT_DIAGRAM_PATH = EXAMPLES_DIR / "conveyor_belt_tool_1d_diagram.dot"
+DEFAULT_CONTROL_STATES = np.array(
+    [False, True, True, False, False, False, True, True, False, False],
+    dtype=bool,
+)
 
 
 @dataclass
@@ -123,13 +127,44 @@ def _extract_contact_pairs(plant) -> List[Tuple[object, object]]:
 class ConveyorToolExperiment:
     """Builds and simulates the conveyor belt tool example."""
 
+    BASE_C3_OPTIONS: ClassVar[Dict[str, List[float]]] = {
+        "gamma": [1.0],
+        "rho_scale": [0.4],
+        "w_Q": [4.1],
+        "w_R": [4.0],
+        "w_G": [0.3],
+        "w_U": [1.0],
+        "q_vector": [1.0, 1e7, 1e1, 1.0, 1.0, 1.0, 1e9, 1e1, 1.0, 1.0],
+        "r_vector": [0.1, 0.1],
+        "g_x": [1.0, 0.1, 0.1, 1.0, 1.0, 1.0, 0.1, 0.1, 1.0, 1.0],
+        "g_gamma": [0.01, 10.0],
+        "g_lambda_n": [1.0, 1.0],
+        "g_lambda_t": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        "g_lambda": [],
+        "g_u": [0.1, 0.1],
+        "u_x": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        "u_gamma": [0.01, 10.0],
+        "u_lambda_n": [1.0, 1.0],
+        "u_lambda_t": [0.1, 0.1, 0.1, 0.1, 1.0, 1.0, 1.0, 1.0],
+        "u_lambda": [],
+        "u_u": [0.1, 0.1],
+    }
+    SCALAR_OPTION_KEYS: ClassVar[Set[str]] = {
+        "gamma",
+        "rho_scale",
+        "w_Q",
+        "w_R",
+        "w_G",
+        "w_U",
+    }
+
     def __init__(
         self,
         *,
         conveyor_sdf: Union[str, Path] = DEFAULT_CONVEYOR_SDF,
         box_sdf: Union[str, Path] = DEFAULT_BOX_SDF,
         options_path: Union[str, Path] = DEFAULT_OPTIONS,
-        tracked_state_indices: Optional[Sequence[int]] = None,
+        control_states: Optional[Sequence[bool]] = None,
         settling_tolerance: float = 5e-3,
         settling_epsilon: float = 2e-2,
         settling_window: float = 0.25,
@@ -139,11 +174,11 @@ class ConveyorToolExperiment:
         self.conveyor_sdf = Path(conveyor_sdf).resolve()
         self.box_sdf = Path(box_sdf).resolve()
         self.options_path = Path(options_path).resolve()
-        self.tracked_state_indices = (
-            np.atleast_1d(tracked_state_indices).astype(int)
-            if tracked_state_indices is not None
-            else None
+        self._control_states_arg = (
+            None if control_states is None else np.array(control_states, dtype=bool)
         )
+        self.control_states: Optional[np.ndarray] = None
+        self.target_state: Optional[np.ndarray] = None
         self.settling_tolerance = settling_tolerance
         self.settling_epsilon = settling_epsilon
         self.settling_window = settling_window
@@ -214,6 +249,8 @@ class ConveyorToolExperiment:
         c3_controller.set_name("c3_controller")
 
         target_state = self._resolve_target_state(options, plant_for_sim)
+        self.target_state = target_state.copy()
+        self.control_states = self._normalize_control_states(target_state.size)
         xdes = builder.AddSystem(ConstantVectorSource(target_state))
 
         n_x = plant_for_sim.num_positions() + plant_for_sim.num_velocities()
@@ -354,7 +391,7 @@ class ConveyorToolExperiment:
         desired_state_traj = np.asarray(desired_state_log.data())
 
         steady_state_error, settling_time, error_norm = self._compute_metrics(
-            state_times, state_trajectory, target_state
+            state_times, state_trajectory
         )
 
         override_copy = None
@@ -373,7 +410,7 @@ class ConveyorToolExperiment:
             desired_state_trajectory=desired_state_traj,
             control_times=control_times,
             control_trajectory=control_trajectory,
-            target_state=target_state,
+            target_state=self.target_state.copy(),
             error_norm=error_norm,
             c3_overrides=override_copy,
         )
@@ -428,53 +465,92 @@ class ConveyorToolExperiment:
             return list(value)
         return value
 
-    def _compute_metrics(
-        self,
-        times: np.ndarray,
-        state_trajectory: np.ndarray,
-        target_state: np.ndarray,
-    ) -> Tuple[float, float, np.ndarray]:
+    def _normalize_control_states(self, expected_size: int) -> np.ndarray:
+        if self._control_states_arg is None:
+            mask = DEFAULT_CONTROL_STATES.copy()
+        else:
+            mask = np.array(self._control_states_arg, dtype=bool).copy()
+        if mask.size != expected_size:
+            raise ValueError(
+                f"control_states must have length {expected_size}, "
+                f"got {mask.size}"
+            )
+        if not np.any(mask):
+            raise ValueError("control_states must select at least one state.")
+        return mask
+
+    def _compute_metrics(self, times, state_trajectory):
         if state_trajectory.size == 0:
             return 0.0, 0.0, np.array([])
-        tracked_indices = (
-            self.tracked_state_indices
-            if self.tracked_state_indices is not None
-            else np.arange(target_state.size)
-        )
-        error = state_trajectory[tracked_indices, :] - target_state[tracked_indices, None]
-        error_norm = np.linalg.norm(error, axis=0)
-        steady_state_error = float(error_norm[-1])
-        settling_time = self._compute_settling_time(times, error_norm)
-        return steady_state_error, settling_time, error_norm
 
-    def _compute_settling_time(self, times, error_norm):
+        tracked_state = np.sum(
+            state_trajectory[self.control_states, :], axis=0
+        )
+        tracked_target = float(np.sum(self.target_state[self.control_states]))
+        error_signal = tracked_state - tracked_target
+        abs_error = np.abs(error_signal)
+        steady_state_error = float(abs_error[-1])
+        settling_time = self._compute_settling_time(times, tracked_state)
+        return steady_state_error, settling_time, abs_error
+
+    def _compute_settling_time(self, times, signal):
         if len(times) == 0:
             return 0.0
-        moving_average, ma_times = self._moving_average(
-            error_norm,
-            times,
-            window=self.settling_window,
+        moving_average = self._compute_moving_average(
+            signal, times, window=self.settling_window
         )
-        threshold = self.settling_tolerance + self.settling_epsilon
-        for idx, value in enumerate(moving_average):
-            if value <= threshold and np.all(moving_average[idx:] <= threshold):
-                return float(ma_times[idx])
-        return float(times[-1])
+        return moving_average
 
-    def _moving_average(self, signal, timestamps, *, window):
+    def _compute_moving_average(
+        self,
+        signal,
+        timestamps,
+        *,
+        epsilon=0.02,
+        window=0.5,
+    ):
+        """
+        Computes settling time for a second-order-like response.
+
+        Parameters
+        ----------
+        signal : array_like
+            Response values.
+        timestamps : array_like
+            Time axis aligned with the signal.
+        epsilon : float, optional
+            Half-width of the settling band around the steady-state value.
+        window : float, optional
+            Duration (seconds) over which the moving average is computed.
+
+        Returns
+        -------
+        float
+            Time when the moving average enters the settling band and stays there.
+        """
         signal = np.asarray(signal, dtype=float)
         timestamps = np.asarray(timestamps, dtype=float)
-        if signal.size == 0 or signal.size != timestamps.size:
+        if signal.size == 0 or timestamps.size != signal.size:
             raise ValueError(
-                "signal and timestamps must be non-empty and aligned.")
+                "signal and timestamps must be non-empty and aligned")
+
         dt = np.mean(np.diff(timestamps))
         if dt <= 0:
-            raise ValueError("timestamps must be strictly increasing.")
+            raise ValueError("timestamps must be strictly increasing")
         window_samples = max(1, int(round(window / dt)))
         weights = np.ones(window_samples, dtype=float) / window_samples
         moving_average = np.convolve(signal, weights, mode="valid")
         ma_times = timestamps[window_samples - 1:]
-        return moving_average, ma_times
+
+        steady_value = np.mean(signal[-window_samples:])
+        lower = steady_value - epsilon
+        upper = steady_value + epsilon
+
+        within_band = (moving_average >= lower) & (moving_average <= upper)
+        for idx, inside in enumerate(within_band):
+            if inside and np.all(within_band[idx:]):
+                return float(ma_times[idx])
+        return float(timestamps[-1])
 
 
 def parse_args() -> argparse.Namespace:
