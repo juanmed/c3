@@ -50,8 +50,8 @@ class SineVectorGenerator : public drake::systems::LeafSystem<double> {
     Eigen::VectorBlock<Eigen::VectorX<double>> output_value =
         output_vector->get_mutable_value();
     Eigen::VectorX<double> out = Eigen::VectorX<double>::Zero(dims_);
-    out(0) = 2.5 * std::cos(1 * context.get_time());
-    out(1) = 1 * std::cos(3 * context.get_time()) + 2;
+    out(0) = 10.5 * std::cos(0.1 * context.get_time());
+    out(1) = 10 * std::cos(3 * context.get_time()) + 2;
     // out(2) = 2 * std::sin(2.5 * context.get_time()) + 3;
     // out(3) = 3 * std::sin(2 * context.get_time()) + 4;
     // out(4) = 1 * std::cos(1.5 * context.get_time()) + 5;
@@ -65,9 +65,9 @@ class SineVectorGenerator : public drake::systems::LeafSystem<double> {
 
 ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   drake::multibody::MultibodyPlantConfig config;
-  config.time_step = 0.008;  // continuous plant
+  config.time_step = 0.005;  // continuous plant
   config.penetration_allowance = 0.005;
-  config.contact_model = "point";
+  config.contact_model = "hydroelastic";
   config.contact_surface_representation = "polygon";
 
   drake::geometry::SceneGraphConfig scene_graph_config;
@@ -90,7 +90,7 @@ ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
   const drake::geometry::GeometryId geom_id =
       plant_lcs.GetCollisionGeometriesForBody(conveyor_belt_body).at(0);
   plant_lcs.DeclareSurfaceVelocityInputPort(
-      geom_id, Eigen::Vector3d(0.0, 1.0, 0.0), 0.5);
+      geom_id, Eigen::Vector3d(0.0, 0.0, 1.0), 0.5);
   plant_lcs.set_name(name);
 
   // Filter collisions between conveyor belt and floor

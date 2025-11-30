@@ -4,7 +4,7 @@ solve_time_filter_alpha: 0.0
 #set to 0 to publish as fast as possible
 publish_frequency: 100
 state_prediction_joints: []
-goal_state: [0, 1, 1, 0, 0, 0, 0, 0 ]
+goal_state: [0, 1, 0, 0.075, 0, 0, 1, 0, 0, 0 ]
 
 lcs_factory_options:
   #options are 'stewart_and_trinkle' or 'anitescu'
@@ -13,7 +13,7 @@ lcs_factory_options:
   num_friction_directions: 2
   num_contacts: 2
   spring_stiffness: 0
-  mu: [ 0.8, 0.8 ]
+  mu: [ 0.3, 0.3 ]
   N: 10
   dt: 0.01
 
@@ -35,17 +35,17 @@ c3_options:
   w_R: 4
   w_G: 0.3
   w_U: 1
-  q_vector: [ 1, 1e5, 1e5, 1, 1e3, 1e3, 1, 1 ]   #State Tracking Error, assuming diagonal
-  r_vector: [ 1, 0.1 ] #Single surface-velocity input
-  g_x: [ 1, 1, 1, 1, 1, 1, 1, 1]
+  q_vector: [ 1, 1e7, 1e1, 1, 1, 1, 1e9, 1e1, 1, 1 ]   #State Tracking Error, assuming diagonal
+  r_vector: [ 0.1, 0.1 ] #Single surface-velocity input
+  g_x: [ 1, 0.1, 0.1, 1, 1, 1, 0.1, 0.1, 1, 1]
   g_gamma: [ 1, 1 ]
   g_lambda_n: [ 1, 1 ]
   g_lambda_t: [ 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1 ]
   g_lambda: []
-  g_u: [ 1, 0.1 ] 
-  u_x: [ 1, 1, 1, 1, 1, 1, 1, 1 ]
+  g_u: [ 0.1, 0.1 ] 
+  u_x: [ 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
   u_gamma: [ 1, 1 ]
   u_lambda_n: [ 1, 1 ]
   u_lambda_t: [ 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1 ]
   u_lambda: []
-  u_u: [ 1, 0.1 ] #Weight for the surface-velocity command
+  u_u: [ 0.1, 0.1 ] #Weight for the surface-velocity command

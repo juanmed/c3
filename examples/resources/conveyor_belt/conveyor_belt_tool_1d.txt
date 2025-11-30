@@ -84,7 +84,7 @@
           <drake:hunt_crossley_dissipation>1</drake:hunt_crossley_dissipation>
           <drake:point_contact_stiffness>1e9</drake:point_contact_stiffness>
           <drake:surface_speed>0.5</drake:surface_speed>
-          <drake:surface_velocity_normal>0 0 1</drake:surface_velocity_normal>
+          <drake:surface_velocity_normal>0 1 0</drake:surface_velocity_normal>
         </drake:proximity_properties>
       </collision>
     </link>
