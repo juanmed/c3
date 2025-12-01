@@ -63,11 +63,13 @@ class SineVectorGenerator : public drake::systems::LeafSystem<double> {
   const int dims_;
 };
 
-ConveyorSystem setupLCSPlant(const std::string& name, bool build = true) {
+ConveyorSystem setupLCSPlant(const std::string& name,
+                             const std::string& contact_model = "point",
+                             bool build = true) {
   drake::multibody::MultibodyPlantConfig config;
   config.time_step = 0.005;  // continuous plant
   config.penetration_allowance = 0.005;
-  config.contact_model = "point";
+  config.contact_model = contact_model;
   config.contact_surface_representation = "polygon";
 
   drake::geometry::SceneGraphConfig scene_graph_config;
@@ -133,8 +135,9 @@ std::vector<drake::SortedPair<drake::geometry::GeometryId>> extractContactPairs(
 }
 
 int conveyor_belt_tool() {
-  ConveyorSystem conveyor_lcs = setupLCSPlant("plant_for_lcs");
-  ConveyorSystem conveyor_sim = setupLCSPlant("plant_for_sim", false);
+  ConveyorSystem conveyor_lcs = setupLCSPlant("plant_for_lcs", "point");
+  ConveyorSystem conveyor_sim =
+      setupLCSPlant("plant_for_sim", "hydroelastic", false);
 
   const auto prnt = [](const auto& e) { std::cout << e << std::endl; };
   auto u_ns = conveyor_lcs.plant->GetActuatorNames();
