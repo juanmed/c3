@@ -44,7 +44,7 @@ DEFAULT_BOX_SDF = RESOURCES_DIR / "box.sdf"
 DEFAULT_OPTIONS = RESOURCES_DIR / "conveyor_belt_tool_1d_c3_options.yaml"
 DEFAULT_DIAGRAM_PATH = EXAMPLES_DIR / "conveyor_belt_tool_1d_diagram.dot"
 DEFAULT_CONTROL_STATES = np.array(
-    [False, True, True, False, False, False, True, True, False, False],
+    [False, True, True, False, False, False, False, False, False, False],
     dtype=bool,
 )
 
@@ -89,7 +89,7 @@ def _build_conveyor_system(
     builder = DiagramBuilder()
     plant_config = MultibodyPlantConfig()
     plant_config.time_step = 0.005
-    plant_config.penetration_allowance = 0.005
+    plant_config.penetration_allowance = 0.001
     plant_config.contact_model = "hydroelastic"
     plant_config.contact_surface_representation = "polygon"
     scene_graph_config = SceneGraphConfig()
@@ -483,13 +483,15 @@ class ConveyorToolExperiment:
         if state_trajectory.size == 0:
             return 0.0, 0.0, np.array([])
 
-        tracked_state = np.sum(
-            state_trajectory[self.control_states, :], axis=0
-        )
-        tracked_target = float(np.sum(self.target_state[self.control_states]))
-        error_signal = tracked_state - tracked_target
+        tracked_state = state_trajectory[self.control_states, -1]
+        tracked_target = self.target_state[self.control_states]
+        print(f"tracked state: {tracked_state}, tracked target: {tracked_target}")
+        error_signal = np.linalg.norm(np.array(tracked_state) - np.array(tracked_target))
         abs_error = np.abs(error_signal)
-        steady_state_error = float(abs_error[-1])
+        steady_state_error = error_signal # float(abs_error[-1])
+        
+        tracked_state = np.sum(state_trajectory[self.control_states, :], axis=0)
+        print("Tracked state: \n", tracked_state)
         settling_time = self._compute_settling_time(times, tracked_state)
         return steady_state_error, settling_time, abs_error
 

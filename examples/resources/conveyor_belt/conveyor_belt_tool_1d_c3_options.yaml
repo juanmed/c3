@@ -4,7 +4,7 @@ solve_time_filter_alpha: 0.0
 #set to 0 to publish as fast as possible
 publish_frequency: 100
 state_prediction_joints: []
-goal_state: [0, 1, 0, 0.075, 0, 0, 1, 0, 0, 0 ]
+goal_state: [0, 1, 1, 0.075, 0, 0, 1, 0, 0, 0 ]
 
 lcs_factory_options:
   #options are 'stewart_and_trinkle' or 'anitescu'
@@ -29,23 +29,23 @@ c3_options:
 
   admm_iter: 5
 
-  gamma: 1
-  rho_scale: 0.4 #matrix scaling
-  w_Q: 4.1
-  w_R: 4
-  w_G: 0.3
-  w_U: 1
-  q_vector: [ 1, 1e7, 1e1, 1, 1, 1, 1e9, 1e1, 1, 1 ]   #State Tracking Error, assuming diagonal
-  r_vector: [ 0.1, 0.1 ] #Single surface-velocity input
-  g_x: [ 1, 0.1, 0.1, 1, 1, 1, 0.1, 0.1, 1, 1]
-  g_gamma: [ 0.01, 10 ]
-  g_lambda_n: [ 1, 1 ]
-  g_lambda_t: [ 1, 1, 1, 1, 1, 1, 1, 1 ]
+  gamma: 5.08
+  rho_scale: 0.8514 #matrix scaling
+  w_Q: 1.07
+  w_R: 8.4
+  w_G: 0.069
+  w_U: 9.17
+  q_vector: [ 1, 1276, 1276, 4, 0.4, 0.3, 30522, 30522, 0.4, 0.5 ]   #State Tracking Error, assuming diagonal
+  r_vector: [ 0.01, 0.05 ] #Single surface-velocity input
+  g_x: [ 0.6, 0.28, 0.03, 1.14, 1.15, 8.82, 0.07, 0.09, 1.75, 1.83]
+  g_gamma: [ 0.001, 1 ]
+  g_lambda_n: [ 0.46, 0.4 ]
+  g_lambda_t: [ 0.42, 8.31, 0.1, 0.11, 1.4, 0.2, 7.64, 0.1 ]
   g_lambda: []
-  g_u: [ 0.1, 0.1 ] 
-  u_x: [ 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
-  u_gamma: [ 0.01, 10 ]
-  u_lambda_n: [ 1, 1 ]
-  u_lambda_t: [ 0.1, 0.1, 0.1, 0.1, 1, 1, 1, 1 ]
+  g_u: [ 0.14, 0.012 ] 
+  u_x: [ 0.219, 9.16,  9.16, 0.35, 0.18, 1.72, 0.78, 4.19, 1, 1 ]
+  u_gamma: [ 0.03, 1.64 ]
+  u_lambda_n: [ 0.5, 9.78 ]
+  u_lambda_t: [ 0.013, 0.22, 0.03, 0.013, 8.42, 6.02, 0.24, 0.11 ]
   u_lambda: []
-  u_u: [ 0.1, 0.1 ] #Weight for the surface-velocity command
+  u_u: [ 0.03, 0.01 ] #Weight for the surface-velocity command
