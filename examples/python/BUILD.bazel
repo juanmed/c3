@@ -67,6 +67,7 @@ py_binary(
     srcs = [
         "ray_optimize.py",
         "surface_velocity.py",
+        "conveyor_tool.py",
         "common_systems.py",
     ],
     deps = [
@@ -83,6 +84,24 @@ py_binary(
 py_binary(
     name = "conveyor_tool",
     srcs = ["conveyor_tool.py"],
+    deps = [
+        "//bindings/pyc3:pyc3",
+        ":c3_example",
+    ],
+    data = [
+        "//examples:example_data",
+        "//core:default_solver_options",
+    ],
+)
+
+py_binary(
+    name = "ax_optimize",
+    srcs = [
+        "ax_optimize.py",
+        "surface_velocity.py",
+        "conveyor_tool.py",
+        "common_systems.py",
+    ],
     deps = [
         "//bindings/pyc3:pyc3",
         ":c3_example",
