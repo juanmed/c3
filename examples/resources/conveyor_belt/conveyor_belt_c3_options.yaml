@@ -14,18 +14,19 @@ lcs_factory_options:
   num_contacts: 1
   spring_stiffness: 0
   mu: [ 0.8 ]
-  N: 10
+  N: 30
   dt: 0.01
 
 c3_options:
   warm_start: false
+  penalize_input_change: false
   end_on_qp_step: true
   scale_lcs: false
 
   num_threads: 10
   delta_option: 1
 
-  M: 1000
+  M: 5000
 
   admm_iter: 5
 
@@ -35,7 +36,7 @@ c3_options:
   w_R: 0.5 #
   w_G: 0.3 #
   w_U: 1 #
-  q_vector: [ 47000, 0, 4e1, 200, 0, 20 ]   #State Tracking Error, assuming diagonal
+  q_vector: [ 47000, 0, 4e3, 200, 0, 2000 ]   #State Tracking Error, assuming diagonal
   r_vector: [ 0.2 ] #Single surface-velocity input
   g_x: [ 0.04, 0.2, 0.01, 0.05, 0.2, 0.01 ]
   g_gamma: [ 0.1 ]
@@ -43,7 +44,7 @@ c3_options:
   g_lambda_t: [ 0.1, 0.1, 0.1, 0.1 ]
   g_lambda: []
   g_u: [ 1 ] 
-  u_x: [ 0.3, 0.7, 8, 1, 1.5, 1.5 ]
+  u_x: [ 0.3, 0.7, 8, 1, 1.5, 15 ]
   u_gamma: [ 1 ]
   u_lambda_n: [ 1 ]
   u_lambda_t: [ 1, 1, 1, 1 ]
