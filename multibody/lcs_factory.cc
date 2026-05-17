@@ -6,6 +6,7 @@
 #include "multibody/multibody_utils.h"
 
 #include "drake/common/text_logging.h"
+#include "drake/common/fmt_eigen.h"
 #include "drake/math/autodiff_gradient.h"
 #include "drake/math/rotation_matrix.h"
 #include "drake/solvers/moby_lcp_solver.h"

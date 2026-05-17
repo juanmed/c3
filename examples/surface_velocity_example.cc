@@ -35,6 +35,37 @@ using c3::systems::LCSSimulator;
 using drake::common::CallPython;
 using drake::common::ToPythonTuple;
 
+class SineVectorGenerator : public drake::systems::LeafSystem<double> {
+ public:
+  DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(SineVectorGenerator);
+  SineVectorGenerator(int dims) : dims_(dims) {
+    this->DeclareVectorOutputPort("sine_cosine",
+                                  drake::systems::BasicVector<double>(dims_),
+                                  &SineVectorGenerator::calc_output);
+  }
+
+  void calc_output(const drake::systems::Context<double>& context,
+                   drake::systems::BasicVector<double>* output_vector) const {
+    Eigen::VectorBlock<Eigen::VectorX<double>> output_value =
+        output_vector->get_mutable_value();
+    Eigen::VectorX<double> out = Eigen::VectorX<double>::Zero(dims_);
+    if (context.get_time() < 0.5) {
+      out(0) = 100;
+    } else {
+      out(0) = 0;
+    }
+    // out(1) = 10 * std::cos(3 * context.get_time()) + 2;
+    // out(2) = 2 * std::sin(2.5 * context.get_time()) + 3;
+    // out(3) = 3 * std::sin(2 * context.get_time()) + 4;
+    // out(4) = 1 * std::cos(1.5 * context.get_time()) + 5;
+    // out(5) = 4 * std::cos(1 * context.get_time()) + 0;
+    output_value = out;
+  }
+
+ private:
+  const int dims_;
+};
+
 int conveyor_belt_example() {
   drake::multibody::MultibodyPlantConfig config;
   config.time_step = 0.005;
@@ -57,7 +88,7 @@ int conveyor_belt_example() {
   parser.AddModels(conveyor_belt_url);
 
   // Overrides the surface speed and surface velocity normal defined through
-  // the sdf file, and also create their input ports to dynamic modify them.
+  // the sdf file, and also create their input ports to dynamically modify them.
   const drake::multibody::RigidBody<double>& conveyor_belt_body =
       plant_for_lcs.GetBodyByName("conveyor_belt");
   const drake::geometry::GeometryId geom_id =
@@ -125,7 +156,7 @@ int surface_velocity_example() {
   config.time_step = 0.0;
   config.penetration_allowance = 0.001;
   config.contact_model =
-      "hydroelastic";  // "hydroelastic" or "point" or "hydroelastic_with_fallback"
+      "point";  // "hydroelastic" or "point" or "hydroelastic_with_fallback"
   config.contact_surface_representation = "polygon";  // "polygon" or "triangle"
 
   drake::geometry::SceneGraphConfig scene_graph_config;
@@ -226,6 +257,8 @@ int surface_velocity_example() {
       plant_for_lcs, cost, options,
       lcs_factory_system->GetNumContactVelocityBiases());
   c3_controller->set_name("c3_controller");
+  c3_controller->AddLinearConstraint(Eigen::RowVectorXd::Ones(1), -12.0, 12.0,
+                                     c3::ConstraintVariable::INPUT);
 
   // Add linear constratins to the controller
   // Eigen::MatrixXd A = Eigen::MatrixXd::Zero(14, 14);
@@ -271,16 +304,25 @@ int surface_velocity_example() {
       xdes->get_output_port(), &plant_for_sim_builder);
   des_state_logger->set_name("des_state_logger");
 
+
+  const int lcs_num_inputs = plant_for_lcs.num_actuators();
+  const int lcs_num_biases = lcs_factory_system->GetNumContactVelocityBiases();
+  auto sine_vector_gen = plant_for_sim_builder.AddSystem<SineVectorGenerator>(
+      lcs_num_inputs + lcs_num_biases);
+
   // c3 controller's output -> C3Solution2Input -> plant's conveyor speed input
   auto c3_input = plant_for_sim_builder.AddSystem<C3Solution2Input>(1);
   plant_for_sim_builder.Connect(c3_controller->get_output_port_c3_solution(),
                                 c3_input->get_input_port_c3_solution());
   plant_for_sim_builder.Connect(
-      c3_input->get_output_port_c3_input(),
+      //c3_input->get_output_port_c3_input(),
+      sine_vector_gen->get_output_port(0),
       plant_for_sim.get_surface_speed_input_port(sim_geom_id).value().get());
 
   auto x_logger = drake::systems::LogVectorOutput(
-      c3_input->get_output_port_c3_input(), &plant_for_sim_builder);
+      sine_vector_gen->get_output_port(0), 
+      // c3_input->get_output_port_c3_input(), 
+      &plant_for_sim_builder);
   x_logger->set_name("x_logger");
 
   // Add a ZeroOrderHold system for state updates.
